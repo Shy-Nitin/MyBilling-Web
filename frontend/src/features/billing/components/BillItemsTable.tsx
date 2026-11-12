@@ -59,9 +59,7 @@ export const BillItemsTable: React.FC<BillItemsTableProps> = ({
           {items.map((item) => {
             const subtotal = item.quantity * item.unit_rate;
             const discount = subtotal * (item.discount_percent / 100);
-            const taxable = subtotal - discount;
-            const tax = taxable * (item.tax_rate / 100);
-            const total = taxable + tax;
+            const total = subtotal - discount;
 
             return (
               <tr key={item.product_id} className="hover:bg-slate-50 transition-colors">

@@ -22,7 +22,11 @@ export const KpiMetricGrid: React.FC<KpiMetricGridProps> = ({ metrics }) => {
       />
 
       <MetricCard
-        title="Net Profit (21.6% Margin)"
+        title={
+          metrics.gross_revenue_today > 0
+            ? `Net Profit (${((metrics.net_profit_today / metrics.gross_revenue_today) * 100).toFixed(1)}% Margin)`
+            : "Net Profit (Realtime)"
+        }
         value={formatCurrency(metrics.net_profit_today)}
         icon={TrendingUp}
         change={metrics.net_profit_change}

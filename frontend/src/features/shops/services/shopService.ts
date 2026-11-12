@@ -8,17 +8,31 @@ export interface CreateShopPayload {
   gstin?: string;
   address?: string;
   area?: string;
+  route_id?: number;
   credit_limit: number;
   tier?: string;
+  status?: string;
 }
 
 export const shopService = {
-  getShops: async (search?: string): Promise<Shop[]> => {
-    return apiClient.get<Shop[]>("/shops", { search });
+  getShops: async (params?: { search?: string; route_id?: number; status?: string }): Promise<Shop[]> => {
+    return apiClient.get<Shop[]>("/shops", params);
+  },
+
+  getShop: async (shopId: number): Promise<Shop> => {
+    return apiClient.get<Shop>(`/shops/${shopId}`);
   },
 
   createShop: async (payload: CreateShopPayload): Promise<Shop> => {
     return apiClient.post<Shop>("/shops", payload);
+  },
+
+  updateShop: async (shopId: number, payload: Partial<CreateShopPayload>): Promise<Shop> => {
+    return apiClient.put<Shop>(`/shops/${shopId}`, payload);
+  },
+
+  deleteShop: async (shopId: number): Promise<{ success: boolean; action: string; message: string }> => {
+    return apiClient.delete<{ success: boolean; action: string; message: string }>(`/shops/${shopId}`);
   },
 
   collectPayment: async (

@@ -76,12 +76,12 @@ export const QuickActionsBento: React.FC<QuickActionsBentoProps> = ({ onNavigate
         >
           <div className="flex items-center justify-between">
             <LineChart className="w-5 h-5 text-slate-700 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-[10px] bg-white text-slate-800 font-semibold px-1.5 py-0.5 rounded border border-slate-300">
-              GST
+            <span className="font-mono text-[10px] bg-white text-teal-800 font-semibold px-1.5 py-0.5 rounded border border-teal-300">
+              PROFIT
             </span>
           </div>
           <div>
-            <div className="font-semibold text-xs text-slate-900">Profit & Tax</div>
+            <div className="font-semibold text-xs text-slate-900">Reports & Profits</div>
             <div className="text-[11px] text-slate-600">Margins & analytics</div>
           </div>
         </button>

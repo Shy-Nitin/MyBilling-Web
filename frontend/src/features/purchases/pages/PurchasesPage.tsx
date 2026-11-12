@@ -1,30 +1,39 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Truck, Building2, Wallet, Calendar, FileText } from "lucide-react";
+import { Plus, Truck, Building2, Wallet, Calendar, FileText, Edit2, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { MetricCard } from "../../../components/common/MetricCard";
 import { AddVendorModal } from "../components/AddVendorModal";
 import { NewGrnModal } from "../components/NewGrnModal";
 import { RecordSupplierPaymentModal } from "../components/RecordSupplierPaymentModal";
+import { Modal } from "../../../components/common/Modal";
 import {
   purchaseService,
-  PurchaseOrderData,
   CreateGrnPayload,
   CreateSupplierPayload,
 } from "../services/purchaseService";
-import { Supplier, Product } from "../../../types";
+import { productService } from "../../products/services/productService";
+import { Supplier, Product, PurchaseOrder } from "../../../types";
 import { formatCurrency, formatDate } from "../../../lib/formatters";
 import { StatusBadge } from "../../../components/common/StatusBadge";
 
 export const PurchasesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"grn" | "suppliers">("grn");
-  const [purchases, setPurchases] = useState<PurchaseOrderData[]>([]);
+  const [purchases, setPurchases] = useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Modals
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [isGrnModalOpen, setIsGrnModalOpen] = useState(false);
+  const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
+  const [editPurchase, setEditPurchase] = useState<PurchaseOrder | null>(null);
   const [paymentSupplier, setPaymentSupplier] = useState<Supplier | null>(null);
+
+  // Deletion modals
+  const [purchaseToDelete, setPurchaseToDelete] = useState<PurchaseOrder | null>(null);
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -36,7 +45,7 @@ export const PurchasesPage: React.FC = () => {
       const [pos, supps, prods] = await Promise.all([
         purchaseService.getPurchases(),
         purchaseService.getSuppliers(),
-        purchaseService.getProducts(),
+        productService.getProducts(),
       ]);
       setPurchases(pos);
       setSuppliers(supps);
@@ -48,14 +57,58 @@ export const PurchasesPage: React.FC = () => {
     }
   };
 
-  const handleAddVendor = async (payload: CreateSupplierPayload) => {
-    await purchaseService.createSupplier(payload);
+  const handleSaveVendor = async (payload: CreateSupplierPayload) => {
+    if (editSupplier) {
+      await purchaseService.updateSupplier(editSupplier.id, payload);
+    } else {
+      await purchaseService.createSupplier(payload);
+    }
+    setEditSupplier(null);
+    setIsVendorModalOpen(false);
     loadData();
   };
 
-  const handleCreateGrn = async (payload: CreateGrnPayload) => {
-    await purchaseService.createPurchaseOrder(payload);
+  const handleDeleteVendor = async () => {
+    if (!supplierToDelete) return;
+    try {
+      setIsDeleting(true);
+      const res = await purchaseService.deleteSupplier(supplierToDelete.id);
+      setNotice(res.message);
+      setTimeout(() => setNotice(null), 6000);
+      setSupplierToDelete(null);
+      loadData();
+    } catch (err: any) {
+      alert(err?.message || "Failed to delete supplier.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSaveGrn = async (payload: CreateGrnPayload) => {
+    if (editPurchase) {
+      await purchaseService.updatePurchaseOrder(editPurchase.id, payload);
+    } else {
+      await purchaseService.createPurchaseOrder(payload);
+    }
+    setEditPurchase(null);
+    setIsGrnModalOpen(false);
     loadData();
+  };
+
+  const handleDeletePurchase = async () => {
+    if (!purchaseToDelete) return;
+    try {
+      setIsDeleting(true);
+      const res = await purchaseService.deletePurchaseOrder(purchaseToDelete.id);
+      setNotice(res.message);
+      setTimeout(() => setNotice(null), 6000);
+      setPurchaseToDelete(null);
+      loadData();
+    } catch (err: any) {
+      alert(err?.message || "Failed to delete purchase order.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handlePaySupplier = async (
@@ -72,6 +125,16 @@ export const PurchasesPage: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full gap-space-lg">
+      {/* Notice Banner */}
+      {notice && (
+        <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center justify-between text-xs text-amber-900 font-medium">
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} className="text-amber-700 hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Top Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
         <MetricCard
@@ -102,10 +165,10 @@ export const PurchasesPage: React.FC = () => {
         />
 
         <MetricCard
-          title="Avg Settlement Terms"
-          value="21 Days"
+          title="Master Product SKUs"
+          value={`${products.length} Items`}
           icon={Calendar}
-          subtitle="Procurement credit window"
+          subtitle="Stocked in warehouse"
           iconBgColor="bg-secondary-container"
           iconColor="text-on-secondary-fixed"
         />
@@ -141,7 +204,10 @@ export const PurchasesPage: React.FC = () => {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
-            onClick={() => setIsVendorModalOpen(true)}
+            onClick={() => {
+              setEditSupplier(null);
+              setIsVendorModalOpen(true);
+            }}
             className="h-9 px-3.5 bg-surface-container-low hover:bg-surface-container text-slate-800 border border-slate-200/80 font-semibold text-xs rounded flex items-center gap-1.5 transition-colors"
           >
             <Plus className="w-4 h-4 text-primary" />
@@ -150,7 +216,10 @@ export const PurchasesPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setIsGrnModalOpen(true)}
+            onClick={() => {
+              setEditPurchase(null);
+              setIsGrnModalOpen(true);
+            }}
             className="h-9 px-4 bg-primary-container text-white hover:bg-primary font-semibold text-xs rounded flex items-center gap-1.5 shadow-xs transition-colors"
           >
             <Truck className="w-4 h-4" />
@@ -174,12 +243,13 @@ export const PurchasesPage: React.FC = () => {
                   <th className="py-3 px-4 font-medium text-right">Paid</th>
                   <th className="py-3 px-4 font-medium text-right">Balance Due</th>
                   <th className="py-3 px-4 font-medium text-center">Status</th>
+                  <th className="py-3 px-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-body-sm text-body-sm">
                 {purchases.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-secondary text-sm">
+                    <td colSpan={9} className="py-12 text-center text-secondary text-sm">
                       No Goods Receipt Notes posted yet. Click "Receive Stock (GRN)" to inward goods.
                     </td>
                   </tr>
@@ -195,7 +265,7 @@ export const PurchasesPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-800">
-                          {sup ? sup.name : `Supplier #${po.supplier_id}`}
+                          {po.supplier_name || (sup ? sup.name : `Supplier #${po.supplier_id}`)}
                         </td>
                         <td className="py-3 px-4 font-mono text-xs text-slate-600">
                           {po.vendor_invoice_no || "N/A"}
@@ -214,6 +284,29 @@ export const PurchasesPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 text-center">
                           <StatusBadge status={po.status} size="sm" />
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="inline-flex items-center gap-1.5 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditPurchase(po);
+                                setIsGrnModalOpen(true);
+                              }}
+                              className="p-1 rounded hover:bg-amber-50 text-slate-600 hover:text-amber-700 transition-colors"
+                              title="Edit GRN"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPurchaseToDelete(po)}
+                              className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                              title="Delete GRN"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -235,7 +328,7 @@ export const PurchasesPage: React.FC = () => {
                   <th className="py-3 px-4 font-medium">City</th>
                   <th className="py-3 px-4 font-medium text-center">Terms</th>
                   <th className="py-3 px-4 font-medium text-right">Outstanding Payable</th>
-                  <th className="py-3 px-4 font-medium text-right">Remittance</th>
+                  <th className="py-3 px-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-body-sm text-body-sm">
@@ -257,14 +350,35 @@ export const PurchasesPage: React.FC = () => {
                       {formatCurrency(s.outstanding_balance)}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentSupplier(s)}
-                        disabled={s.outstanding_balance <= 0}
-                        className="h-8 px-3 rounded-lg bg-indigo-50 hover:bg-primary-container text-primary hover:text-white font-semibold text-xs transition-colors border border-indigo-200 disabled:opacity-40"
-                      >
-                        Disburse Pay
-                      </button>
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentSupplier(s)}
+                          disabled={s.outstanding_balance <= 0}
+                          className="h-8 px-2.5 rounded-lg bg-indigo-50 hover:bg-primary-container text-primary hover:text-white font-semibold text-xs transition-colors border border-indigo-200 disabled:opacity-40"
+                        >
+                          Disburse
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditSupplier(s);
+                            setIsVendorModalOpen(true);
+                          }}
+                          className="p-1.5 rounded hover:bg-amber-50 text-slate-600 hover:text-amber-700 transition-colors"
+                          title="Edit Supplier"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSupplierToDelete(s)}
+                          className="p-1.5 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                          title="Delete Supplier"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -274,20 +388,28 @@ export const PurchasesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Add Vendor Modal */}
+      {/* Add / Edit Vendor Modal */}
       <AddVendorModal
         isOpen={isVendorModalOpen}
-        onClose={() => setIsVendorModalOpen(false)}
-        onSubmit={handleAddVendor}
+        onClose={() => {
+          setIsVendorModalOpen(false);
+          setEditSupplier(null);
+        }}
+        onSubmit={handleSaveVendor}
+        editSupplier={editSupplier}
       />
 
-      {/* New GRN Modal */}
+      {/* New / Edit GRN Modal */}
       <NewGrnModal
         isOpen={isGrnModalOpen}
-        onClose={() => setIsGrnModalOpen(false)}
+        onClose={() => {
+          setIsGrnModalOpen(false);
+          setEditPurchase(null);
+        }}
         suppliers={suppliers}
         products={products}
-        onSubmit={handleCreateGrn}
+        onSubmit={handleSaveGrn}
+        editPurchase={editPurchase}
       />
 
       {/* Record Supplier Payment Modal */}
@@ -297,6 +419,108 @@ export const PurchasesPage: React.FC = () => {
         onClose={() => setPaymentSupplier(null)}
         onSubmit={handlePaySupplier}
       />
+
+      {/* Delete GRN Modal */}
+      {purchaseToDelete && (
+        <Modal
+          isOpen={true}
+          onClose={() => setPurchaseToDelete(null)}
+          title="Delete Goods Receipt Note (GRN)?"
+          subtitle="Inventory and vendor balances will be reconciled."
+          maxWidth="max-w-md"
+        >
+          <div className="flex flex-col gap-4 py-2">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-900 flex flex-col gap-1">
+                <p className="font-semibold">
+                  Are you sure you want to delete GRN {purchaseToDelete.po_number}?
+                </p>
+                <p>
+                  Deleting will decrement stock quantities added by this purchase, revert the supplier payable balance, and void the purchase ledger records.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPurchaseToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletePurchase}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Confirm Delete GRN</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete Supplier Modal */}
+      {supplierToDelete && (
+        <Modal
+          isOpen={true}
+          onClose={() => setSupplierToDelete(null)}
+          title="Delete Supplier Partner?"
+          subtitle="Check for existing purchase transactions."
+          maxWidth="max-w-md"
+        >
+          <div className="flex flex-col gap-4 py-2">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 flex flex-col gap-1">
+                <p className="font-semibold">
+                  Remove supplier partner '{supplierToDelete.name}'?
+                </p>
+                <p>
+                  If this supplier has historical purchase transactions or stock receipts, they will be safely marked as "Archived" to preserve your accounting ledger and historical reports.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setSupplierToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteVendor}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <span>Confirm Delete</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

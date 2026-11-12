@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "../../../components/common/Modal";
 import { Product } from "../../../types";
 import { CreateProductPayload } from "../services/productService";
+import { categoryService } from "../../categories/services/categoryService";
 
 interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (payload: CreateProductPayload) => Promise<void>;
   editProduct?: Product | null;
+  categoryList?: string[];
 }
 
 export const AddProductModal: React.FC<AddProductModalProps> = ({
@@ -15,12 +17,14 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
   onClose,
   onSubmit,
   editProduct,
+  categoryList,
 }) => {
   const [sku, setSku] = useState("");
   const [barcode, setBarcode] = useState("");
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
-  const [category, setCategory] = useState("Staples & Grains");
+  const [category, setCategory] = useState("General");
+  const [availableCategories, setAvailableCategories] = useState<string[]>(categoryList || []);
   const [packSize, setPackSize] = useState("1 unit");
   const [unit, setUnit] = useState("PCS");
   const [landedCost, setLandedCost] = useState(0);
@@ -31,6 +35,16 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (categoryList && categoryList.length > 0) {
+      setAvailableCategories(categoryList);
+    } else {
+      categoryService.getCategories(true).then((cats) => {
+        if (cats && cats.length > 0) {
+          setAvailableCategories(cats.map((c) => c.name));
+        }
+      }).catch(() => {});
+    }
+
     if (editProduct) {
       setSku(editProduct.sku);
       setBarcode(editProduct.barcode || "");
@@ -51,7 +65,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
       setBarcode(`890${rand}123456`);
       setName("");
       setBrand("");
-      setCategory("Staples & Grains");
+      setCategory(availableCategories[0] || "General");
       setPackSize("1 unit");
       setUnit("PCS");
       setLandedCost(0);
@@ -60,7 +74,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
       setStockQty(50);
       setMinThreshold(15);
     }
-  }, [editProduct, isOpen]);
+  }, [editProduct, isOpen, categoryList]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,12 +185,19 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
               onChange={(e) => setCategory(e.target.value)}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-2 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary font-medium text-slate-800"
             >
-              <option value="Staples & Grains">Staples & Grains</option>
-              <option value="Edible Oils">Edible Oils</option>
-              <option value="Beverages & Dairy">Beverages & Dairy</option>
-              <option value="Personal Care">Personal Care</option>
-              <option value="Snacks & Confectionery">Snacks & Confectionery</option>
-              <option value="Cleaning & Household">Cleaning & Household</option>
+              {availableCategories.length > 0 ? (
+                availableCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="General">General</option>
+                  <option value="Staples & Grains">Staples & Grains</option>
+                  <option value="Edible Oils">Edible Oils</option>
+                </>
+              )}
             </select>
           </div>
         </div>

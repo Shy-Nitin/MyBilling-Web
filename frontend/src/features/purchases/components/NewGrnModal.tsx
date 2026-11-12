@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "../../../components/common/Modal";
-import { Supplier, Product } from "../../../types";
+import { Supplier, Product, PurchaseOrder } from "../../../types";
 import { CreateGrnPayload } from "../services/purchaseService";
 import { formatCurrency } from "../../../lib/formatters";
 
@@ -11,6 +11,7 @@ interface NewGrnModalProps {
   suppliers: Supplier[];
   products: Product[];
   onSubmit: (payload: CreateGrnPayload) => Promise<void>;
+  editPurchase?: PurchaseOrder | null;
 }
 
 interface GrnRow {
@@ -26,6 +27,7 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
   suppliers,
   products,
   onSubmit,
+  editPurchase,
 }) => {
   const [supplierId, setSupplierId] = useState<number>(suppliers[0]?.id || 1);
   const [vendorInvoiceNo, setVendorInvoiceNo] = useState("");
@@ -38,9 +40,43 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
       product_id: products[0]?.id || 1,
       quantity: 10,
       unit_cost: products[0]?.landed_cost || 1000,
-      tax_rate: 5,
+      tax_rate: 0,
     },
   ]);
+
+  useEffect(() => {
+    if (editPurchase) {
+      setSupplierId(editPurchase.supplier_id);
+      setVendorInvoiceNo(editPurchase.vendor_invoice_no || "");
+      setPaidAmount(editPurchase.paid_amount || 0);
+      setNotes(editPurchase.notes || "");
+      if (editPurchase.items && editPurchase.items.length > 0) {
+        setItems(
+          editPurchase.items.map((it) => ({
+            product_id: it.product_id,
+            quantity: it.quantity,
+            unit_cost: it.unit_cost,
+            tax_rate: it.tax_rate || 0,
+          }))
+        );
+      }
+    } else {
+      setSupplierId(suppliers[0]?.id || 1);
+      setVendorInvoiceNo("");
+      setPaidAmount(0);
+      setNotes("");
+      if (products.length > 0) {
+        setItems([
+          {
+            product_id: products[0].id,
+            quantity: 10,
+            unit_cost: products[0].landed_cost || 1000,
+            tax_rate: 0,
+          },
+        ]);
+      }
+    }
+  }, [editPurchase, isOpen, suppliers, products]);
 
   const handleAddItem = () => {
     setItems((prev) => [
@@ -105,8 +141,8 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Inward Goods Receipt Note (GRN)"
-      subtitle="Record stock receipt from vendor, calculate tax, and increment inventory."
+      title={editPurchase ? `Edit GRN: ${editPurchase.po_number}` : "Inward Goods Receipt Note (GRN)"}
+      subtitle={editPurchase ? "Reconciles inventory stock adjustments and supplier outstanding balance automatically." : "Record stock receipt from vendor, calculate tax, and increment inventory."}
       maxWidth="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -287,7 +323,7 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
             disabled={isSubmitting || grandTotal <= 0}
             className="h-9 px-5 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold text-xs rounded shadow-xs transition-colors"
           >
-            {isSubmitting ? "Receiving Stock..." : "Post GRN & Inward Stock"}
+            {isSubmitting ? "Saving..." : editPurchase ? "Update GRN & Reconcile Stock" : "Post GRN & Inward Stock"}
           </button>
         </div>
       </form>

@@ -18,6 +18,24 @@ export interface Product {
   created_at: string;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface Route {
+  id: number;
+  name: string;
+  code?: string;
+  description?: string;
+  is_active: boolean;
+  created_at?: string;
+  shop_count?: number;
+}
+
 export interface Shop {
   id: number;
   name: string;
@@ -26,10 +44,14 @@ export interface Shop {
   gstin?: string;
   address?: string;
   area?: string;
+  route_id?: number;
+  route_name?: string;
   credit_limit: number;
   current_balance: number;
   tier: string;
   status: string;
+  total_invoices?: number;
+  total_billed?: number;
 }
 
 export interface Supplier {
@@ -44,6 +66,37 @@ export interface Supplier {
   outstanding_balance: number;
   payment_terms_days: number;
   status: string;
+}
+
+export interface PurchaseItem {
+  id?: number;
+  purchase_id?: number;
+  product_id: number;
+  sku: string;
+  product_name: string;
+  quantity: number;
+  unit_cost: number;
+  tax_rate: number;
+  total_amount: number;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  po_number: string;
+  supplier_id: number;
+  supplier_name?: string;
+  vendor_invoice_no?: string;
+  order_date: string;
+  received_date?: string;
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  paid_amount: number;
+  balance_amount: number;
+  status: string;
+  notes?: string;
+  created_at: string;
+  items?: PurchaseItem[];
 }
 
 export interface InvoiceItem {
@@ -116,8 +169,36 @@ export interface SystemSettings {
   show_barcode: boolean;
   show_qr: boolean;
   upi_id: string;
+  upi_payee_name?: string;
   enable_sound: boolean;
   playful_mode: boolean;
+
+  // Independent template customizations
+  template_50mm_header?: string;
+  template_50mm_footer?: string;
+  template_50mm_show_logo?: boolean;
+  template_50mm_show_qr?: boolean;
+  template_50mm_font_size?: number;
+
+  template_80mm_header?: string;
+  template_80mm_footer?: string;
+  template_80mm_show_logo?: boolean;
+  template_80mm_show_qr?: boolean;
+  template_80mm_font_size?: number;
+
+  template_a4_header?: string;
+  template_a4_footer?: string;
+  template_a4_show_logo?: boolean;
+  template_a4_show_qr?: boolean;
+  template_a4_font_size?: number;
+}
+
+export interface BackupInfo {
+  filename: string;
+  size_bytes: number;
+  size_kb: number;
+  created_at: string;
+  is_auto_snapshot?: boolean;
 }
 
 export interface DashboardMetrics {

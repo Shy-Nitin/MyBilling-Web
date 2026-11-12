@@ -7,6 +7,8 @@ from backend.app.models.invoice import Invoice, InvoiceItem
 from backend.app.models.purchase import PurchaseOrder, PurchaseItem
 from backend.app.models.ledger import LedgerEntry
 from backend.app.models.settings import SystemSettings
+from backend.app.models.route import Route
+from backend.app.models.category import Category
 
 def init_database():
     Base.metadata.create_all(bind=engine)
@@ -24,16 +26,23 @@ def init_database():
             email="billing@mybilling.corp",
             address="Shop #4-B, APMC Market Yard, Phase II, Mumbai 400703",
             currency_symbol="₹",
-            tax_rate_default=18.0,
-            bill_header="TAX INVOICE / CASH MEMO",
+            tax_rate_default=0.0,
+            bill_header="INVOICE / CASH MEMO",
             bill_footer="Thank you for your business! All squared away, Boss.",
             terms_and_conditions="1. Goods once sold will not be returned without original invoice.\n2. Overdue bills attract 18% p.a. interest.\n3. Subject to local jurisdiction.",
             show_logo=True,
             show_barcode=True,
             show_qr=True,
             upi_id="mybilling@okhdfcbank",
+            upi_payee_name="MyBilling Wholesale",
             enable_sound=True,
-            playful_mode=True
+            playful_mode=True,
+            template_50mm_header="INVOICE / BILL",
+            template_50mm_footer="Thank you! Visit again.",
+            template_80mm_header="CASH MEMO / INVOICE",
+            template_80mm_footer="Thank you for your business!",
+            template_a4_header="TAX INVOICE / CASH MEMO",
+            template_a4_footer="Thank you for your business! All squared away, Boss."
         )
         db.add(settings)
 
@@ -175,7 +184,7 @@ def init_database():
                 address="Sector 14, Vashi Highway",
                 area="Navi Mumbai",
                 credit_limit=150000.0,
-                current_balance=42500.0,
+                current_balance=0.0,
                 tier="VIP Wholesaler",
                 status="Active"
             ),
@@ -187,9 +196,9 @@ def init_database():
                 address="Near Railway Station, Thane West",
                 area="Thane",
                 credit_limit=80000.0,
-                current_balance=68200.0,
+                current_balance=0.0,
                 tier="Regular",
-                status="Warning" # High credit utilization
+                status="Active"
             ),
             Shop(
                 name="Bharat Provision Mart",
@@ -199,7 +208,7 @@ def init_database():
                 address="Gala #12, Market Rd, Dadar",
                 area="Central Mumbai",
                 credit_limit=200000.0,
-                current_balance=18400.0,
+                current_balance=0.0,
                 tier="VIP Wholesaler",
                 status="Active"
             ),
@@ -230,7 +239,7 @@ def init_database():
                 gstin="27AAACA9921C1Z4",
                 address="Plot 55, MIDC Industrial Area, Turbhe",
                 city="Navi Mumbai",
-                outstanding_balance=124000.0,
+                outstanding_balance=0.0,
                 payment_terms_days=30,
                 status="Active"
             ),
@@ -242,7 +251,7 @@ def init_database():
                 gstin="27BBBPG7766K1Z9",
                 address="Gala 301, Cotton Green Warehousing",
                 city="Mumbai",
-                outstanding_balance=48500.0,
+                outstanding_balance=0.0,
                 payment_terms_days=15,
                 status="Active"
             ),
@@ -254,7 +263,7 @@ def init_database():
                 gstin="27CCCHE1122N1Z1",
                 address="Grain Market, Masjid Bunder",
                 city="South Mumbai",
-                outstanding_balance=85000.0,
+                outstanding_balance=0.0,
                 payment_terms_days=21,
                 status="Active"
             ),
@@ -262,65 +271,7 @@ def init_database():
         db.add_all(sample_suppliers)
         db.flush()
 
-    # Seed Sample Invoices if empty
-    if db.query(Invoice).count() == 0:
-        prod1 = db.query(Product).first()
-        prod2 = db.query(Product).offset(1).first()
-        shop1 = db.query(Shop).first()
-
-        inv1 = Invoice(
-            invoice_number="INV-20261023-0001",
-            shop_id=shop1.id if shop1 else None,
-            customer_name="Laxmi Supermarket",
-            customer_phone="98211 44556",
-            subtotal=24800.0,
-            discount_amount=400.0,
-            tax_amount=2440.0,
-            total_amount=26840.0,
-            paid_amount=26840.0,
-            balance_amount=0.0,
-            payment_mode="UPI",
-            payment_status="PAID",
-            notes="Delivered via Branch Van #2",
-            created_at=datetime.utcnow() - timedelta(hours=3)
-        )
-        db.add(inv1)
-        db.flush()
-
-        item1 = InvoiceItem(
-            invoice_id=inv1.id,
-            product_id=prod1.id,
-            sku=prod1.sku,
-            product_name=prod1.name,
-            pack_size=prod1.pack_size,
-            quantity=5.0,
-            unit=prod1.unit,
-            unit_rate=prod1.wholesale_rate,
-            unit_cost=prod1.landed_cost,
-            mrp=prod1.mrp,
-            discount_percent=0.0,
-            discount_amount=0.0,
-            tax_rate=5.0,
-            tax_amount=912.5,
-            total_amount=19162.5
-        )
-        db.add(item1)
-
-        # Seed double entry
-        rev_entry = LedgerEntry(
-            entry_number="JRN-202610-00001",
-            transaction_date=inv1.created_at,
-            reference_type="SALE_INVOICE",
-            reference_id=inv1.invoice_number,
-            shop_id=inv1.shop_id,
-            account_type="REVENUE",
-            description=f"Sales Invoice {inv1.invoice_number}",
-            credit_amount=inv1.total_amount,
-            debit_amount=0.0,
-            running_balance=26840.0,
-            payment_mode=inv1.payment_mode
-        )
-        db.add(rev_entry)
+    # Note: No sample invoices or ledger entries seeded to ensure clean zero-state for new transactions
 
     db.commit()
     db.close()

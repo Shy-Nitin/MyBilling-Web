@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from backend.app.core.database import Base
 
@@ -12,9 +13,12 @@ class Shop(Base):
     gstin = Column(String(30), nullable=True)
     address = Column(String(300), nullable=True)
     area = Column(String(100), nullable=True)
+    route_id = Column(Integer, ForeignKey("routes.id", ondelete="SET NULL"), nullable=True, index=True)
     credit_limit = Column(Float, default=50000.0) # Udhar limit
     current_balance = Column(Float, default=0.0) # Current outstanding debt
     tier = Column(String(20), default="Standard") # Retailer, Wholesaler, VIP
     status = Column(String(20), default="Active") # Active, Warning, Blocked
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    route = relationship("Route", backref="shops")

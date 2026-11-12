@@ -9,6 +9,7 @@ class ShopBase(BaseModel):
     gstin: Optional[str] = None
     address: Optional[str] = None
     area: Optional[str] = None
+    route_id: Optional[int] = None
     credit_limit: float = 50000.0
     current_balance: float = 0.0
     tier: Optional[str] = "Standard"
@@ -24,6 +25,7 @@ class ShopUpdate(BaseModel):
     gstin: Optional[str] = None
     address: Optional[str] = None
     area: Optional[str] = None
+    route_id: Optional[int] = None
     credit_limit: Optional[float] = None
     current_balance: Optional[float] = None
     tier: Optional[str] = None
@@ -33,5 +35,8 @@ class ShopResponse(ShopBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    route_name: Optional[str] = None
+    total_invoices: Optional[int] = 0
+    total_billed: Optional[float] = 0.0
 
     model_config = ConfigDict(from_attributes=True)

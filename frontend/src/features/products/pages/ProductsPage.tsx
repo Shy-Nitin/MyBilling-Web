@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Package, DollarSign, Layers, AlertTriangle } from "lucide-react";
+import { Plus, Package, DollarSign, Layers, AlertTriangle, Tag } from "lucide-react";
 import { MetricCard } from "../../../components/common/MetricCard";
 import { ProductTable } from "../components/ProductTable";
 import { AddProductModal } from "../components/AddProductModal";
 import { BulkSelectionBar } from "../components/BulkSelectionBar";
+import { ManageCategoriesModal } from "../../categories/components/ManageCategoriesModal";
 import { productService, CreateProductPayload } from "../services/productService";
+import { categoryService } from "../../categories/services/categoryService";
 import { Product } from "../../../types";
 import { formatCurrency } from "../../../lib/formatters";
 
 export const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>(["All"]);
   const [valuation, setValuation] = useState<{
     cost_valuation: number;
     wholesale_valuation: number;
@@ -27,11 +30,26 @@ export const ProductsPage: React.FC = () => {
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     loadData();
   }, [selectedCategory, selectedStatus]);
+
+  const loadCategories = async () => {
+    try {
+      const cats = await categoryService.getCategories();
+      const names = ["All", ...cats.map((c) => c.name)];
+      setCategories(names);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -82,15 +100,6 @@ export const ProductsPage: React.FC = () => {
       loadData();
     }
   };
-
-  const categories = [
-    "All",
-    "Staples & Grains",
-    "Edible Oils",
-    "Beverages & Dairy",
-    "Personal Care",
-    "Snacks & Confectionery",
-  ];
 
   return (
     <div className="flex flex-col w-full gap-space-lg">
@@ -167,18 +176,29 @@ export const ProductsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Add Product Button */}
-        <button
-          type="button"
-          onClick={() => {
-            setEditProduct(null);
-            setIsAddModalOpen(true);
-          }}
-          className="h-9 px-4 bg-primary-container text-white hover:bg-primary font-semibold text-xs rounded flex items-center gap-1.5 shadow-xs transition-colors self-start lg:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Product [F2]</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 self-start lg:self-auto">
+          <button
+            type="button"
+            onClick={() => setIsCategoryModalOpen(true)}
+            className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded flex items-center gap-1.5 shadow-2xs transition-colors"
+          >
+            <Tag className="w-3.5 h-3.5 text-primary" />
+            <span>Manage Categories</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditProduct(null);
+              setIsAddModalOpen(true);
+            }}
+            className="h-9 px-4 bg-primary-container text-white hover:bg-primary font-semibold text-xs rounded flex items-center gap-1.5 shadow-xs transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Product [F2]</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Table */}
@@ -211,6 +231,17 @@ export const ProductsPage: React.FC = () => {
         }}
         onSubmit={handleSaveProduct}
         editProduct={editProduct}
+        categoryList={categories.filter((c) => c !== "All")}
+      />
+
+      {/* Category Management Modal */}
+      <ManageCategoriesModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoriesChanged={() => {
+          loadCategories();
+          loadData();
+        }}
       />
     </div>
   );

@@ -151,25 +151,39 @@ export const ProfitAnalyticsChart: React.FC<ProfitAnalyticsChartProps> = ({ data
         </ResponsiveContainer>
       </div>
 
-      {/* KPI Summary Chips at bottom matching Stitch spec */}
-      <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
-        <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
-          <span className="text-slate-400 block text-[10px]">Peak Day</span>
-          <span className="font-bold text-slate-800">Wednesday (₹8.42 Lakh)</span>
-        </div>
-        <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
-          <span className="text-slate-400 block text-[10px]">Net Margin Run-Rate</span>
-          <span className="font-bold text-emerald-700">21.6% Healthy</span>
-        </div>
-        <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
-          <span className="text-slate-400 block text-[10px]">Week vs Prior</span>
-          <span className="font-bold text-primary">+15.0% Growth</span>
-        </div>
-        <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
-          <span className="text-slate-400 block text-[10px]">Net Take-Home</span>
-          <span className="font-bold text-slate-800">₹1,82,450 / day</span>
-        </div>
-      </div>
+      {/* Dynamic KPI Summary Chips calculated from real data */}
+      {(() => {
+        const totalRev = data.reduce((sum, pt) => sum + pt.gross_revenue, 0);
+        const totalProf = data.reduce((sum, pt) => sum + pt.net_profit, 0);
+        const peak = data.reduce(
+          (max, pt) => (pt.gross_revenue > max.gross_revenue ? pt : max),
+          { label: "None", gross_revenue: 0, net_profit: 0, margin_percent: 0, prior_revenue: 0 }
+        );
+        const avgMargin = totalRev > 0 ? ((totalProf / totalRev) * 100).toFixed(1) : "0.0";
+
+        return (
+          <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+            <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
+              <span className="text-slate-400 block text-[10px]">Peak Day</span>
+              <span className="font-bold text-slate-800">
+                {peak.gross_revenue > 0 ? `${peak.label} (${formatCurrency(peak.gross_revenue)})` : "No Sales Yet"}
+              </span>
+            </div>
+            <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
+              <span className="text-slate-400 block text-[10px]">Net Margin Run-Rate</span>
+              <span className="font-bold text-emerald-700">{avgMargin}% Net</span>
+            </div>
+            <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
+              <span className="text-slate-400 block text-[10px]">Period Total Sales</span>
+              <span className="font-bold text-primary">{formatCurrency(totalRev)}</span>
+            </div>
+            <div className="bg-surface-container-low p-2 rounded-lg border border-slate-200/50">
+              <span className="text-slate-400 block text-[10px]">Period Net Profit</span>
+              <span className="font-bold text-slate-800">{formatCurrency(totalProf)}</span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

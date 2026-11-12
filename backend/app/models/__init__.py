@@ -5,6 +5,8 @@ from backend.app.models.invoice import Invoice, InvoiceItem
 from backend.app.models.purchase import PurchaseOrder, PurchaseItem
 from backend.app.models.ledger import LedgerEntry
 from backend.app.models.settings import SystemSettings
+from backend.app.models.route import Route
+from backend.app.models.category import Category
 
 __all__ = [
     "Product",
@@ -16,4 +18,6 @@ __all__ = [
     "PurchaseItem",
     "LedgerEntry",
     "SystemSettings",
+    "Route",
+    "Category",
 ]

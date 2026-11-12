@@ -40,3 +40,28 @@ class TaxSummary(BaseModel):
     sgst_amount: float
     igst_amount: float
     total_tax: float
+
+class InvoiceProfitItemSummary(BaseModel):
+    product_id: int
+    sku: str
+    product_name: str
+    pack_size: str
+    quantity: float
+    unit: str
+    unit_cost: float
+    unit_rate: float
+    unit_profit: float
+    discount_amount: float
+    total_profit: float
+
+class InvoiceProfitSummary(BaseModel):
+    id: int
+    invoice_number: str
+    customer_name: str
+    shop_name: Optional[str] = None
+    date: str
+    total_amount: float
+    total_cost: float
+    total_profit: float
+    profit_margin_percent: float
+    items: List[InvoiceProfitItemSummary] = []

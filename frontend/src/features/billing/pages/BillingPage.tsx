@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { User, Store, AlertCircle } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Store, Edit3, XCircle } from "lucide-react";
 import { ProductSearch } from "../components/ProductSearch";
 import { ProductGrid } from "../components/ProductGrid";
 import { BillItemsTable, CartItem } from "../components/BillItemsTable";
@@ -7,12 +7,21 @@ import { PaymentMethodSelector } from "../components/PaymentMethodSelector";
 import { BillSummary } from "../components/BillSummary";
 import { InvoiceSuccessModal } from "../components/InvoiceSuccessModal";
 import { billingService } from "../services/billingService";
-import { Product, Shop, Invoice } from "../../../types";
+import { settingsService } from "../../settings/services/settingsService";
+import { Product, Shop, Invoice, SystemSettings } from "../../../types";
 
-export const BillingPage: React.FC = () => {
+interface BillingPageProps {
+  onNavigate?: (path: string) => void;
+}
+
+export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Edit mode state
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
   // Filters & selection
   const [search, setSearch] = useState("");
@@ -31,6 +40,9 @@ export const BillingPage: React.FC = () => {
   const [lastInvoice, setLastInvoice] = useState<Invoice | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Submission lock ref to block fast double-clicks
+  const isLockedRef = useRef(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -38,16 +50,57 @@ export const BillingPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [prods, shps] = await Promise.all([
+      const [prods, shps, setts] = await Promise.all([
         billingService.getProducts(),
         billingService.getShops(),
+        settingsService.getSettings().catch(() => null),
       ]);
       setProducts(prods);
       setShops(shps);
+      if (setts) setSettings(setts);
+
+      // Check URL for ?edit=<id>
+      const urlParams = new URLSearchParams(window.location.search);
+      const editId = urlParams.get("edit");
+      if (editId) {
+        loadInvoiceForEdit(parseInt(editId, 10));
+      }
     } catch (err) {
       console.error("Failed to load billing data", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadInvoiceForEdit = async (invoiceId: number) => {
+    try {
+      const inv = await billingService.getInvoiceById(invoiceId);
+      if (inv) {
+        setEditingInvoice(inv);
+        setSelectedShopId(inv.shop_id || null);
+        setCustomerName(inv.customer_name);
+        setCustomerPhone(inv.customer_phone || "");
+        setPaymentMode(inv.payment_mode as any);
+        setPaidAmount(inv.paid_amount || 0);
+
+        // Map items to cart
+        const cartItems: CartItem[] = inv.items.map((it) => ({
+          product_id: it.product_id,
+          sku: it.sku,
+          name: it.product_name,
+          pack_size: it.pack_size || "1 unit",
+          unit: it.unit || "PCS",
+          quantity: it.quantity,
+          unit_rate: it.unit_rate,
+          discount_percent: it.discount_percent,
+          tax_rate: 0.0,
+          mrp: it.mrp || 0.0,
+        }));
+        setCart(cartItems);
+      }
+    } catch (err) {
+      console.error("Failed to load invoice for editing", err);
+      alert("Failed to load existing invoice for editing.");
     }
   };
 
@@ -87,7 +140,7 @@ export const BillingPage: React.FC = () => {
           quantity: 1,
           unit_rate: product.wholesale_rate,
           discount_percent: 0,
-          tax_rate: 18.0,
+          tax_rate: 0.0,
           mrp: product.mrp,
         },
       ];
@@ -116,25 +169,25 @@ export const BillingPage: React.FC = () => {
     setCart((prev) => prev.filter((i) => i.product_id !== productId));
   };
 
-  // Calculations
+  // Wholesale Calculations — NO GST
   const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_rate, 0);
   const totalDiscount = cart.reduce(
     (sum, item) => sum + item.quantity * item.unit_rate * (item.discount_percent / 100),
     0
   );
-  const taxable = subtotal - totalDiscount;
-  const totalTax = cart.reduce((sum, item) => {
-    const itemSub = item.quantity * item.unit_rate;
-    const itemDisc = itemSub * (item.discount_percent / 100);
-    return sum + (itemSub - itemDisc) * (item.tax_rate / 100);
-  }, 0);
-  const grandTotal = Math.round((taxable + totalTax) * 100) / 100;
+  // Total is simply subtotal minus discount
+  const grandTotal = Math.max(0, Math.round((subtotal - totalDiscount) * 100) / 100);
 
-  // Finalize Invoice
+  // Finalize or Update Invoice
   const handleFinalize = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || isLockedRef.current || isSubmitting) return;
+
     try {
+      isLockedRef.current = true;
       setIsSubmitting(true);
+
+      const idempotencyKey = crypto.randomUUID();
+
       const payload = {
         shop_id: selectedShopId,
         customer_name: customerName,
@@ -146,22 +199,32 @@ export const BillingPage: React.FC = () => {
             : paymentMode === "UDHAR_CREDIT"
             ? 0
             : paidAmount,
+        idempotency_key: idempotencyKey,
         items: cart.map((i) => ({
           product_id: i.product_id,
           quantity: i.quantity,
           unit_rate: i.unit_rate,
           discount_percent: i.discount_percent,
-          tax_rate: i.tax_rate,
+          tax_rate: 0.0,
         })),
       };
 
-      const created = await billingService.createInvoice(payload);
-      setLastInvoice(created);
+      let result: Invoice;
+      if (editingInvoice) {
+        result = await billingService.updateInvoice(editingInvoice.id, payload);
+      } else {
+        result = await billingService.createInvoice(payload);
+      }
+
+      setLastInvoice(result);
       setShowSuccess(true);
     } catch (err: any) {
-      alert(`Error creating invoice: ${err.message || err}`);
+      alert(`Error saving invoice: ${err.message || err}`);
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => {
+        isLockedRef.current = false;
+      }, 800);
     }
   };
 
@@ -172,12 +235,27 @@ export const BillingPage: React.FC = () => {
     setCustomerPhone("");
     setPaymentMode("CASH");
     setPaidAmount(0);
+    setEditingInvoice(null);
     setShowSuccess(false);
-    loadData(); // reload product inventory stock
+
+    // Clear URL search param if present
+    if (window.location.search) {
+      window.history.pushState({}, "", "/billing");
+    }
+
+    loadData();
   };
 
   // Filtered products
-  const categories = ["All Items", "Staples & Grains", "Edible Oils", "Beverages & Dairy", "Personal Care", "Snacks & Confectionery"];
+  const categories = [
+    "All Items",
+    "Staples & Grains",
+    "Edible Oils",
+    "Beverages & Dairy",
+    "Personal Care",
+    "Snacks & Confectionery",
+  ];
+
   const filteredProducts = products.filter((p) => {
     const matchesCat = selectedCategory === "All Items" || p.category === selectedCategory;
     const matchesSearch =
@@ -190,6 +268,34 @@ export const BillingPage: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full gap-space-lg">
+      {/* Edit Mode Warning Banner if Editing */}
+      {editingInvoice && (
+        <div className="bg-amber-50 border-2 border-amber-300 p-space-md rounded-xl shadow-xs flex items-center justify-between gap-3 text-amber-900">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-200 text-amber-800 flex items-center justify-center shrink-0">
+              <Edit3 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-xs uppercase tracking-wider block font-mono">
+                EDITING EXISTING INVOICE: {editingInvoice.invoice_number} (ID #{editingInvoice.id})
+              </span>
+              <p className="text-[11px] text-amber-800">
+                Saving will update this invoice in place without creating a new invoice or changing its number.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleResetForNewBill}
+            className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-semibold text-xs rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
+          >
+            <XCircle className="w-3.5 h-3.5 text-amber-700" />
+            <span>Cancel Edit</span>
+          </button>
+        </div>
+      )}
+
       {/* Top Customer / Shop Context Banner */}
       <div className="bg-surface-container-lowest p-space-md rounded-xl shadow-xs border border-slate-200/70 flex flex-col md:flex-row md:items-center justify-between gap-space-md">
         <div className="flex items-center gap-3 flex-1">
@@ -200,7 +306,7 @@ export const BillingPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
             {/* Shop Selector */}
             <div>
-              <label className="font-mono text-[10px] text-slate-500 uppercase block">
+              <label className="font-mono text-[10px] text-slate-500 uppercase block font-medium">
                 Select Registered Shop (Udhar Allowed)
               </label>
               <select
@@ -219,7 +325,7 @@ export const BillingPage: React.FC = () => {
 
             {/* Customer Name input */}
             <div>
-              <label className="font-mono text-[10px] text-slate-500 uppercase block">
+              <label className="font-mono text-[10px] text-slate-500 uppercase block font-medium">
                 Customer Name / Billing Identity
               </label>
               <input
@@ -269,7 +375,7 @@ export const BillingPage: React.FC = () => {
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h3 className="font-headline-sm text-sm font-bold text-slate-900">
-                Active Bill Ledger
+                {editingInvoice ? `Editing: ${editingInvoice.invoice_number}` : "Active Bill Ledger"}
               </h3>
               <p className="text-[11px] text-slate-500">
                 {customerName} • {cart.length} item(s)
@@ -279,7 +385,7 @@ export const BillingPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCart([])}
-                className="text-[11px] font-mono text-error hover:underline"
+                className="text-[11px] font-mono text-error hover:underline font-semibold"
               >
                 Clear Cart
               </button>
@@ -306,13 +412,15 @@ export const BillingPage: React.FC = () => {
           <BillSummary
             subtotal={subtotal}
             discount={totalDiscount}
-            tax={totalTax}
             total={grandTotal}
             paidAmount={paidAmount}
             onPaidAmountChange={setPaidAmount}
             paymentMode={paymentMode}
             isSubmitting={isSubmitting}
             onFinalize={handleFinalize}
+            editingInvoiceNumber={editingInvoice?.invoice_number}
+            upiId={settings?.upi_id}
+            payeeName={settings?.upi_payee_name || settings?.store_name}
           />
         </div>
       </div>
@@ -323,6 +431,9 @@ export const BillingPage: React.FC = () => {
         isOpen={showSuccess}
         onClose={() => setShowSuccess(false)}
         onNewBill={handleResetForNewBill}
+        isEditMode={!!editingInvoice}
+        upiId={settings?.upi_id}
+        payeeName={settings?.upi_payee_name || settings?.store_name}
       />
     </div>
   );

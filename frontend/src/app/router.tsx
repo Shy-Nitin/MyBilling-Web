@@ -47,11 +47,12 @@ export const AppRouter: React.FC = () => {
   }, []);
 
   const renderPage = () => {
-    switch (currentPath) {
+    const basePath = currentPath.split("?")[0];
+    switch (basePath) {
       case "/":
         return <DashboardPage onNavigate={navigate} />;
       case "/billing":
-        return <BillingPage />;
+        return <BillingPage onNavigate={navigate} />;
       case "/inventory":
       case "/products":
         return <ProductsPage />;

@@ -43,3 +43,14 @@ frontend/.tmp/
 .idea/
 *.swp
 *.swo
+
+# Graphify
+graphify-out/
+
+# Generated Invoices & Testing
+*.pdf
+.pytest_cache/
+*.db.bak
+
+#backup 
+backups

@@ -15,28 +15,50 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<"today" | "7d" | "30d">("today");
 
-  useEffect(() => {
-    loadMetrics();
-  }, []);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadMetrics = async () => {
+  useEffect(() => {
+    loadMetrics(dateRange);
+  }, [dateRange]);
+
+  const loadMetrics = async (range: "today" | "7d" | "30d" = dateRange) => {
     try {
       setLoading(true);
-      const data = await dashboardService.getMetrics();
+      setError(null);
+      const data = await dashboardService.getMetrics(range);
       setMetrics(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load dashboard metrics", err);
+      setError(err?.message || "Failed to load dashboard metrics. Check backend connection.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !metrics) {
+  if (loading && !metrics) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-3 border-primary-container border-t-transparent rounded-full animate-spin" />
           <span className="font-mono text-xs text-secondary">Loading register metrics...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !metrics) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3 max-w-md text-center p-6 bg-surface-container-lowest border border-error/20 rounded-xl shadow-xs">
+          <span className="material-symbols-outlined text-error text-3xl">error_outline</span>
+          <span className="font-semibold text-on-surface">Unable to load metrics</span>
+          <p className="text-secondary text-sm">{error}</p>
+          <button
+            onClick={() => loadMetrics(dateRange)}
+            className="mt-2 px-4 py-2 bg-primary text-white rounded font-medium text-xs hover:bg-primary/90 transition-colors"
+          >
+            Retry Connection
+          </button>
         </div>
       </div>
     );
@@ -118,6 +140,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       <RecentInvoicesTable
         invoices={metrics.recent_invoices}
         onViewAll={() => onNavigate("/ledger")}
+        onNavigate={onNavigate}
+        onRefresh={() => loadMetrics(dateRange)}
       />
     </div>
   );

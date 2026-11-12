@@ -29,10 +29,20 @@ class PurchaseOrderCreate(BaseModel):
     notes: Optional[str] = None
     items: List[PurchaseItemCreate]
 
+class PurchaseOrderUpdate(BaseModel):
+    supplier_id: Optional[int] = None
+    vendor_invoice_no: Optional[str] = None
+    order_date: Optional[datetime] = None
+    paid_amount: Optional[float] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    items: Optional[List[PurchaseItemCreate]] = None
+
 class PurchaseOrderResponse(BaseModel):
     id: int
     po_number: str
     supplier_id: int
+    supplier_name: Optional[str] = None
     vendor_invoice_no: Optional[str] = None
     order_date: datetime
     received_date: Optional[datetime] = None

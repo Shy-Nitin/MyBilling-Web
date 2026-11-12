@@ -36,6 +36,16 @@ class InvoiceCreate(BaseModel):
     paid_amount: Optional[float] = None
     notes: Optional[str] = None
     items: List[InvoiceItemCreate]
+    idempotency_key: Optional[str] = None
+
+class InvoiceUpdate(BaseModel):
+    shop_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    payment_mode: Optional[str] = None
+    paid_amount: Optional[float] = None
+    notes: Optional[str] = None
+    items: Optional[List[InvoiceItemCreate]] = None
 
 class InvoiceResponse(BaseModel):
     id: int

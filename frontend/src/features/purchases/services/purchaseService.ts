@@ -1,25 +1,10 @@
 import { apiClient } from "../../../services/api/apiClient";
-import { Supplier, Product } from "../../../types";
-
-export interface PurchaseOrderData {
-  id: number;
-  po_number: string;
-  supplier_id: number;
-  vendor_invoice_no?: string;
-  order_date: string;
-  received_date?: string;
-  subtotal: number;
-  tax_amount: number;
-  total_amount: number;
-  paid_amount: number;
-  balance_amount: number;
-  status: string;
-  items: any[];
-}
+import { Supplier, PurchaseOrder, PurchaseItem } from "../../../types";
 
 export interface CreateGrnPayload {
   supplier_id: number;
   vendor_invoice_no?: string;
+  order_date?: string;
   paid_amount: number;
   notes?: string;
   items: Array<{
@@ -39,23 +24,48 @@ export interface CreateSupplierPayload {
   address?: string;
   city?: string;
   payment_terms_days?: number;
+  status?: string;
 }
 
 export const purchaseService = {
-  getSuppliers: async (search?: string): Promise<Supplier[]> => {
-    return apiClient.get<Supplier[]>("/purchases/suppliers", { search });
+  getSuppliers: async (search?: string, status?: string): Promise<Supplier[]> => {
+    return apiClient.get<Supplier[]>("/purchases/suppliers", { search, status });
+  },
+
+  getSupplier: async (supplierId: number): Promise<Supplier> => {
+    return apiClient.get<Supplier>(`/purchases/suppliers/${supplierId}`);
   },
 
   createSupplier: async (payload: CreateSupplierPayload): Promise<Supplier> => {
     return apiClient.post<Supplier>("/purchases/suppliers", payload);
   },
 
-  getPurchases: async (supplierId?: number): Promise<PurchaseOrderData[]> => {
-    return apiClient.get<PurchaseOrderData[]>("/purchases", { supplier_id: supplierId });
+  updateSupplier: async (supplierId: number, payload: Partial<CreateSupplierPayload>): Promise<Supplier> => {
+    return apiClient.put<Supplier>(`/purchases/suppliers/${supplierId}`, payload);
   },
 
-  createPurchaseOrder: async (payload: CreateGrnPayload): Promise<PurchaseOrderData> => {
-    return apiClient.post<PurchaseOrderData>("/purchases", payload);
+  deleteSupplier: async (supplierId: number): Promise<{ success: boolean; action: string; message: string }> => {
+    return apiClient.delete<{ success: boolean; action: string; message: string }>(`/purchases/suppliers/${supplierId}`);
+  },
+
+  getPurchases: async (supplierId?: number): Promise<PurchaseOrder[]> => {
+    return apiClient.get<PurchaseOrder[]>("/purchases", { supplier_id: supplierId });
+  },
+
+  getPurchase: async (purchaseId: number): Promise<PurchaseOrder> => {
+    return apiClient.get<PurchaseOrder>(`/purchases/${purchaseId}`);
+  },
+
+  createPurchaseOrder: async (payload: CreateGrnPayload): Promise<PurchaseOrder> => {
+    return apiClient.post<PurchaseOrder>("/purchases", payload);
+  },
+
+  updatePurchaseOrder: async (purchaseId: number, payload: Partial<CreateGrnPayload>): Promise<PurchaseOrder> => {
+    return apiClient.put<PurchaseOrder>(`/purchases/${purchaseId}`, payload);
+  },
+
+  deletePurchaseOrder: async (purchaseId: number): Promise<{ success: boolean; message: string; purchase_id: number }> => {
+    return apiClient.delete<{ success: boolean; message: string; purchase_id: number }>(`/purchases/${purchaseId}`);
   },
 
   paySupplier: async (
@@ -70,9 +80,5 @@ export const purchaseService = {
       payment_mode: paymentMode,
       notes,
     });
-  },
-
-  getProducts: async (): Promise<Product[]> => {
-    return apiClient.get<Product[]>("/products");
   },
 };

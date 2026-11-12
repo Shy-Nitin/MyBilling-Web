@@ -8,8 +8,8 @@ from backend.app.models.purchase import PurchaseOrder, PurchaseItem
 from backend.app.models.supplier import Supplier
 from backend.app.models.product import Product
 from backend.app.models.ledger import LedgerEntry
-from backend.app.schemas.supplier import SupplierCreate, SupplierResponse
-from backend.app.schemas.purchase import PurchaseOrderCreate, PurchaseOrderResponse
+from backend.app.schemas.supplier import SupplierCreate, SupplierUpdate, SupplierResponse
+from backend.app.schemas.purchase import PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderResponse, PurchaseItemResponse
 
 router = APIRouter()
 
@@ -19,13 +19,56 @@ class SupplierPaymentRequest(BaseModel):
     payment_mode: str = "BANK" # BANK, CASH, CHEQUE
     notes: Optional[str] = None
 
+def _enrich_po(po: PurchaseOrder, db: Session) -> PurchaseOrderResponse:
+    supplier = db.query(Supplier).filter(Supplier.id == po.supplier_id).first()
+    supplier_name = supplier.name if supplier else "Unknown Supplier"
+    
+    items = []
+    for it in po.items:
+        items.append(PurchaseItemResponse(
+            id=it.id,
+            purchase_id=it.purchase_id,
+            product_id=it.product_id,
+            sku=it.sku,
+            product_name=it.product_name,
+            quantity=it.quantity,
+            unit_cost=it.unit_cost,
+            tax_rate=it.tax_rate,
+            total_amount=it.total_amount
+        ))
+
+    return PurchaseOrderResponse(
+        id=po.id,
+        po_number=po.po_number,
+        supplier_id=po.supplier_id,
+        supplier_name=supplier_name,
+        vendor_invoice_no=po.vendor_invoice_no,
+        order_date=po.order_date,
+        received_date=po.received_date,
+        subtotal=po.subtotal,
+        tax_amount=po.tax_amount,
+        total_amount=po.total_amount,
+        paid_amount=po.paid_amount,
+        balance_amount=po.balance_amount,
+        status=po.status,
+        notes=po.notes,
+        created_at=po.created_at,
+        items=items
+    )
+
+# ==========================================
+# SUPPLIERS CRUD
+# ==========================================
+
 @router.get("/suppliers", response_model=List[SupplierResponse])
-def list_suppliers(search: Optional[str] = None, db: Session = Depends(get_db)):
+def list_suppliers(search: Optional[str] = None, status: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Supplier)
     if search:
         pattern = f"%{search}%"
-        query = query.filter((Supplier.name.ilike(pattern)) | (Supplier.contact_person.ilike(pattern)))
-    return query.order_by(Supplier.outstanding_balance.desc()).all()
+        query = query.filter((Supplier.name.ilike(pattern)) | (Supplier.contact_person.ilike(pattern)) | (Supplier.phone.ilike(pattern)))
+    if status and status.upper() != "ALL":
+        query = query.filter(Supplier.status == status)
+    return query.order_by(Supplier.outstanding_balance.desc(), Supplier.name.asc()).all()
 
 @router.post("/suppliers", response_model=SupplierResponse)
 def add_supplier(supplier_in: SupplierCreate, db: Session = Depends(get_db)):
@@ -35,12 +78,72 @@ def add_supplier(supplier_in: SupplierCreate, db: Session = Depends(get_db)):
     db.refresh(supplier)
     return supplier
 
+@router.get("/suppliers/{supplier_id}", response_model=SupplierResponse)
+def get_supplier_by_id(supplier_id: int, db: Session = Depends(get_db)):
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found.")
+    return supplier
+
+@router.put("/suppliers/{supplier_id}", response_model=SupplierResponse)
+def update_supplier(supplier_id: int, supplier_in: SupplierUpdate, db: Session = Depends(get_db)):
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found.")
+
+    update_data = supplier_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(supplier, field, value)
+
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+@router.delete("/suppliers/{supplier_id}")
+def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found.")
+
+    has_po = db.query(PurchaseOrder).filter(PurchaseOrder.supplier_id == supplier_id).first()
+    if has_po:
+        supplier.status = "Archived"
+        db.commit()
+        return {
+            "success": True,
+            "action": "archived",
+            "message": f"Supplier '{supplier.name}' has purchase orders and cannot be permanently deleted. Its status has been marked as 'Archived'.",
+            "supplier_id": supplier_id
+        }
+
+    supplier_name = supplier.name
+    db.delete(supplier)
+    db.commit()
+    return {
+        "success": True,
+        "action": "deleted",
+        "message": f"Supplier '{supplier_name}' successfully deleted.",
+        "supplier_id": supplier_id
+    }
+
+# ==========================================
+# PURCHASES CRUD WITH STOCK RECONCILIATION
+# ==========================================
+
 @router.get("", response_model=List[PurchaseOrderResponse])
 def list_purchases(supplier_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(PurchaseOrder)
     if supplier_id:
         query = query.filter(PurchaseOrder.supplier_id == supplier_id)
-    return query.order_by(PurchaseOrder.created_at.desc()).all()
+    pos = query.order_by(PurchaseOrder.created_at.desc()).all()
+    return [_enrich_po(po, db) for po in pos]
+
+@router.get("/{purchase_id}", response_model=PurchaseOrderResponse)
+def get_purchase_by_id(purchase_id: int, db: Session = Depends(get_db)):
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == purchase_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found.")
+    return _enrich_po(po, db)
 
 @router.post("", response_model=PurchaseOrderResponse)
 def create_purchase_order(po_in: PurchaseOrderCreate, db: Session = Depends(get_db)):
@@ -62,7 +165,6 @@ def create_purchase_order(po_in: PurchaseOrderCreate, db: Session = Depends(get_
 
         # Increment inventory stock
         product.stock_qty += item_in.quantity
-        # Update landed cost if new cost is higher/different
         if item_in.unit_cost > 0:
             product.landed_cost = item_in.unit_cost
 
@@ -84,7 +186,8 @@ def create_purchase_order(po_in: PurchaseOrderCreate, db: Session = Depends(get_
         })
 
     grand_total = round(subtotal + total_tax, 2)
-    balance_amount = max(0.0, round(grand_total - po_in.paid_amount, 2))
+    paid_amt = po_in.paid_amount or 0.0
+    balance_amount = max(0.0, round(grand_total - paid_amt, 2))
 
     po = PurchaseOrder(
         po_number=po_number,
@@ -95,7 +198,7 @@ def create_purchase_order(po_in: PurchaseOrderCreate, db: Session = Depends(get_
         subtotal=round(subtotal, 2),
         tax_amount=round(total_tax, 2),
         total_amount=grand_total,
-        paid_amount=po_in.paid_amount,
+        paid_amount=paid_amt,
         balance_amount=balance_amount,
         status="RECEIVED",
         notes=po_in.notes
@@ -129,7 +232,142 @@ def create_purchase_order(po_in: PurchaseOrderCreate, db: Session = Depends(get_
 
     db.commit()
     db.refresh(po)
-    return po
+    return _enrich_po(po, db)
+
+@router.put("/{purchase_id}", response_model=PurchaseOrderResponse)
+def update_purchase_order(purchase_id: int, po_in: PurchaseOrderUpdate, db: Session = Depends(get_db)):
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == purchase_id).with_for_update().first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found.")
+
+    old_supplier = db.query(Supplier).filter(Supplier.id == po.supplier_id).with_for_update().first()
+    if old_supplier:
+        old_supplier.outstanding_balance = max(0.0, old_supplier.outstanding_balance - po.balance_amount)
+
+    # Reconcile stock from old items
+    for old_item in list(po.items):
+        prod = db.query(Product).filter(Product.id == old_item.product_id).with_for_update().first()
+        if prod:
+            prod.stock_qty = max(0.0, prod.stock_qty - old_item.quantity)
+        db.delete(old_item)
+
+    # Target supplier
+    target_supplier_id = po_in.supplier_id if po_in.supplier_id is not None else po.supplier_id
+    supplier = db.query(Supplier).filter(Supplier.id == target_supplier_id).with_for_update().first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Target supplier not found.")
+
+    new_items_data = po_in.items if po_in.items is not None else []
+    if not new_items_data:
+        raise HTTPException(status_code=400, detail="Purchase order must contain at least one line item.")
+
+    subtotal = 0.0
+    total_tax = 0.0
+
+    for item_in in new_items_data:
+        product = db.query(Product).filter(Product.id == item_in.product_id).with_for_update().first()
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {item_in.product_id} not found.")
+
+        product.stock_qty += item_in.quantity
+        if item_in.unit_cost > 0:
+            product.landed_cost = item_in.unit_cost
+
+        item_sub = item_in.unit_cost * item_in.quantity
+        item_tax = item_sub * (item_in.tax_rate / 100.0)
+        item_tot = item_sub + item_tax
+
+        subtotal += item_sub
+        total_tax += item_tax
+
+        new_item = PurchaseItem(
+            purchase_id=po.id,
+            product_id=product.id,
+            sku=product.sku,
+            product_name=product.name,
+            quantity=item_in.quantity,
+            unit_cost=item_in.unit_cost,
+            tax_rate=item_in.tax_rate,
+            total_amount=round(item_tot, 2)
+        )
+        db.add(new_item)
+
+    grand_total = round(subtotal + total_tax, 2)
+    paid_amt = po_in.paid_amount if po_in.paid_amount is not None else po.paid_amount
+    balance_amount = max(0.0, round(grand_total - paid_amt, 2))
+
+    po.supplier_id = supplier.id
+    if po_in.vendor_invoice_no is not None:
+        po.vendor_invoice_no = po_in.vendor_invoice_no
+    if po_in.order_date is not None:
+        po.order_date = po_in.order_date
+    if po_in.status is not None:
+        po.status = po_in.status
+    if po_in.notes is not None:
+        po.notes = po_in.notes
+
+    po.subtotal = round(subtotal, 2)
+    po.tax_amount = round(total_tax, 2)
+    po.total_amount = grand_total
+    po.paid_amount = paid_amt
+    po.balance_amount = balance_amount
+
+    supplier.outstanding_balance += balance_amount
+
+    # Update ledger entry
+    db.query(LedgerEntry).filter(LedgerEntry.reference_id == po.po_number).delete(synchronize_session=False)
+    entry_count = db.query(LedgerEntry).count() + 1
+    ledger_entry = LedgerEntry(
+        entry_number=f"GRN-{datetime.utcnow().strftime('%Y%m')}-{entry_count:05d}",
+        transaction_date=datetime.utcnow(),
+        reference_type="PURCHASE_GRN",
+        reference_id=po.po_number,
+        supplier_id=supplier.id,
+        account_type="ACCOUNTS_PAYABLE",
+        description=f"Purchase GRN {po.po_number} (Updated) from {supplier.name}",
+        debit_amount=0.0,
+        credit_amount=grand_total,
+        running_balance=supplier.outstanding_balance,
+        payment_mode="CREDIT"
+    )
+    db.add(ledger_entry)
+
+    db.commit()
+    db.refresh(po)
+    return _enrich_po(po, db)
+
+@router.delete("/{purchase_id}")
+def delete_purchase_order(purchase_id: int, db: Session = Depends(get_db)):
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == purchase_id).with_for_update().first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found.")
+
+    po_number = po.po_number
+
+    # Reconcile inventory: decrement stock for all purchased items
+    for item in list(po.items):
+        prod = db.query(Product).filter(Product.id == item.product_id).with_for_update().first()
+        if prod:
+            prod.stock_qty = max(0.0, prod.stock_qty - item.quantity)
+        db.delete(item)
+
+    # Revert supplier payable balance
+    supplier = db.query(Supplier).filter(Supplier.id == po.supplier_id).with_for_update().first()
+    if supplier and po.balance_amount > 0:
+        supplier.outstanding_balance = max(0.0, supplier.outstanding_balance - po.balance_amount)
+
+    # Clean up ledger records
+    db.query(LedgerEntry).filter(LedgerEntry.reference_id == po_number).delete(synchronize_session=False)
+
+    db.delete(po)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Purchase order {po_number} deleted. Stock decremented and supplier balance reconciled.",
+        "purchase_id": purchase_id,
+        "po_number": po_number
+    }
 
 @router.post("/pay-supplier")
 def pay_supplier(req: SupplierPaymentRequest, db: Session = Depends(get_db)):

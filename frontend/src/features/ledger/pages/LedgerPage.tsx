@@ -57,7 +57,7 @@ export const LedgerPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
         <MetricCard
           title="Till Drawer Cash on Hand"
-          value={formatCurrency(summary?.cash_in_drawer || 45280)}
+          value={formatCurrency(summary?.cash_in_drawer ?? 0)}
           icon={Wallet}
           subtitle="Physical cash in register"
           iconBgColor="bg-emerald-100"
@@ -66,7 +66,7 @@ export const LedgerPage: React.FC = () => {
 
         <MetricCard
           title="Operating Bank Balance"
-          value={formatCurrency(summary?.bank_balance || 382400)}
+          value={formatCurrency(summary?.bank_balance ?? 0)}
           icon={Building2}
           subtitle="HDFC Current Account"
           iconBgColor="bg-primary-container"
@@ -75,7 +75,7 @@ export const LedgerPage: React.FC = () => {
 
         <MetricCard
           title="Accounts Receivable (Udhar)"
-          value={formatCurrency(summary?.total_receivables || 489200)}
+          value={formatCurrency(summary?.total_receivables ?? 0)}
           icon={ArrowDownLeft}
           subtitle="Owed by retail shops"
           iconBgColor="bg-amber-100"
@@ -84,7 +84,7 @@ export const LedgerPage: React.FC = () => {
 
         <MetricCard
           title="Accounts Payable"
-          value={formatCurrency(summary?.total_payables || 257500)}
+          value={formatCurrency(summary?.total_payables ?? 0)}
           icon={ArrowUpRight}
           subtitle="Owed to stock distributors"
           iconBgColor="bg-secondary-container"

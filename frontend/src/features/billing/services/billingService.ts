@@ -8,13 +8,24 @@ export interface CreateInvoicePayload {
   payment_mode: "CASH" | "UPI" | "UDHAR_CREDIT" | "SPLIT";
   paid_amount?: number;
   notes?: string;
+  idempotency_key?: string;
   items: Array<{
     product_id: number;
     quantity: number;
     unit_rate: number;
     discount_percent: number;
-    tax_rate: number;
+    tax_rate?: number;
   }>;
+}
+
+export interface GetInvoicesParams {
+  limit?: number;
+  skip?: number;
+  shop_id?: number;
+  status?: string;
+  date_preset?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export const billingService = {
@@ -22,8 +33,19 @@ export const billingService = {
     return apiClient.post<Invoice>("/billing/invoices", payload);
   },
 
-  getInvoices: async (limit: number = 50, shopId?: number): Promise<Invoice[]> => {
-    return apiClient.get<Invoice[]>("/billing/invoices", { limit, shop_id: shopId });
+  updateInvoice: async (id: number, payload: CreateInvoicePayload): Promise<Invoice> => {
+    return apiClient.put<Invoice>(`/billing/invoices/${id}`, payload);
+  },
+
+  deleteInvoice: async (id: number): Promise<{ success: boolean; message: string; invoice_number: string }> => {
+    return apiClient.delete<{ success: boolean; message: string; invoice_number: string }>(`/billing/invoices/${id}`);
+  },
+
+  getInvoices: async (params?: GetInvoicesParams | number, legacyShopId?: number): Promise<Invoice[]> => {
+    if (typeof params === "number") {
+      return apiClient.get<Invoice[]>("/billing/invoices", { limit: params, shop_id: legacyShopId });
+    }
+    return apiClient.get<Invoice[]>("/billing/invoices", params);
   },
 
   getInvoiceById: async (id: number): Promise<Invoice> => {

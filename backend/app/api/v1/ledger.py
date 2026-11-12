@@ -42,8 +42,8 @@ def get_ledger_summary(db: Session = Depends(get_db)):
     total_payable = sum(sup.outstanding_balance for sup in db.query(Supplier).all())
 
     return {
-        "cash_in_drawer": round(max(0.0, cash_in_drawer or 45280.0), 2),
-        "bank_balance": round(max(0.0, bank_balance or 382400.0), 2),
+        "cash_in_drawer": round(max(0.0, cash_in_drawer), 2),
+        "bank_balance": round(max(0.0, bank_balance), 2),
         "total_receivables": round(total_receivable, 2),
         "total_payables": round(total_payable, 2),
     }
