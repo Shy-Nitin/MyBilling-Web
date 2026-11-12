@@ -51,22 +51,27 @@ A complete, full-stack, enterprise-grade Billing & POS ERP converted directly fr
 ## 🛠️ Quick Start
 
 ### 1. Start Backend API Server
+
 ```bash
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn backend.app.main:app --reload
 ```
-*API runs at `http://localhost:8000` (Docs: `http://localhost:8000/docs`)*
+
+_API runs at `http://localhost:8000` (Docs: `http://localhost:8000/docs`)_
 
 ### 2. Start Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-*Frontend runs at `http://localhost:5173`*
+
+_Frontend runs at `http://localhost:5173`_
 
 ---
 
 ## 📚 Documentation
+
 - [Architecture & Business Rules](docs/ARCHITECTURE.md)
 - [Folder Structure](docs/FOLDER_STRUCTURE.md)
 - [Database Schema](docs/DATABASE_SCHEMA.md)
