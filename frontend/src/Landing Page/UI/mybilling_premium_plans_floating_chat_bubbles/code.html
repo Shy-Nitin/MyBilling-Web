@@ -1,0 +1,318 @@
+<!DOCTYPE html><html lang="en" style="width: 1280px; height: 1224px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>MyBilling - How We Keep You Ahead®</title>
+<!-- Tailwind CSS CDN with forms and container queries plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- BEGIN: Custom Configuration & Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brandDark: '#08080a',
+          }
+        }
+      }
+    }
+  </script>
+<!-- END: Custom Configuration & Fonts -->
+<!-- BEGIN: Custom CSS Styling -->
+<style data-purpose="background-grid">
+    /* Subtle geometric dark grid backdrop matching the reference */
+    .bg-grid-pattern {
+      background-color: #050507;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 52px 52px;
+    }
+  </style>
+<style data-purpose="card-glow-effects">
+    /* Base card visual framing with subtle specular border */
+    .feature-card {
+      position: relative;
+      background: linear-gradient(180deg, rgba(20, 20, 24, 0.85) 0%, rgba(12, 12, 16, 0.95) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(16px);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Orange / Amber Card Glow (Card 1) */
+    .glow-orange {
+      background: radial-gradient(120% 90% at 50% 115%, #ff5e00 0%, #e88913 28%, #b43a05 55%, transparent 80%);
+    }
+
+    /* Blue / Cyan Card Glow (Card 2) */
+    .glow-blue {
+      background: radial-gradient(120% 90% at 50% 115%, #3b82f6 0%, #2563eb 32%, #1d4ed8 58%, transparent 80%);
+    }
+
+    /* Green / Emerald Card Glow (Card 3) */
+    .glow-green {
+      background: radial-gradient(120% 90% at 50% 115%, #10b981 0%, #059669 32%, #047857 58%, transparent 80%);
+    }
+
+    /* Floating Message Bubble Animations */
+    @keyframes floatBubbleA {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    @keyframes floatBubbleB {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .animate-float-bubble-a {
+      animation: floatBubbleA 3.8s ease-in-out infinite;
+    }
+    .animate-float-bubble-b {
+      animation: floatBubbleB 4.2s ease-in-out infinite;
+    }
+
+    /* Speech Bubble Tails */
+    .bubble-tail-bottom-left::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 14px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 6px solid rgba(147, 51, 234, 0.45);
+    }
+    .bubble-tail-bottom-left::before {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 15px;
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid rgba(24, 16, 44, 0.95);
+      z-index: 1;
+    }
+
+    .bubble-tail-top-right::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      right: 16px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 6px solid rgba(168, 85, 247, 0.55);
+    }
+    .bubble-tail-top-right::before {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      right: 17px;
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid rgba(27, 18, 52, 0.98);
+      z-index: 1;
+    }
+  </style>
+<!-- END: Custom CSS Styling -->
+</head>
+<body class="bg-grid-pattern text-slate-200 min-h-screen font-sans antialiased selection:bg-white/20 selection:text-white flex flex-col justify-between">
+<!-- BEGIN: SiteNavigation -->
+<header class="w-full border-b border-white/[0.06] bg-black/40 backdrop-blur-md sticky top-0 z-50">
+<div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+<!-- Logo -->
+<a class="flex items-center gap-2.5 group" href="#">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+</svg>
+</div>
+<span class="text-white font-bold tracking-tight text-lg">MyBilling</span>
+</a>
+<!-- Right Navigation Action -->
+<nav>
+<a class="text-xs uppercase tracking-wider font-semibold text-zinc-400 hover:text-white transition-colors duration-200 flex items-center gap-1.5 py-1 px-3 rounded-full hover:bg-white/5 border border-transparent hover:border-white/10" href="#">
+<span>Back to Home</span>
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</a>
+</nav>
+</div>
+</header>
+<!-- END: SiteNavigation -->
+<!-- BEGIN: MainContent -->
+<main class="flex-grow flex flex-col justify-center py-12 md:py-16">
+<div class="max-w-[1020px] w-full mx-auto px-6">
+<!-- BEGIN: HeroSectionHeader -->
+<section aria-labelledby="section-heading" class="mb-10 text-left">
+<!-- Main Section Title matching reference font and symbol -->
+<h1 class="text-3xl md:text-[40px] font-extrabold text-white tracking-tight leading-tight mb-4" id="section-heading">How MyBilling Powers Your Growth®</h1>
+<!-- Descriptive Subtitles matching exact text -->
+<div class="text-[15px] md:text-base text-zinc-400 font-normal leading-relaxed space-y-1 max-w-2xl"><p>From lightning-fast counter billing to automated distributor ledgers, select the plan engineered for your scale.</p></div>
+</section>
+<!-- END: HeroSectionHeader -->
+<!-- BEGIN: CardsGrid -->
+<div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10"><div aria-label="Billing frequency" class="inline-flex items-center p-1 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md relative" id="billing-toggle-container" role="group"><button aria-pressed="true" class="relative z-10 px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-white/15 text-white shadow-sm" id="toggle-monthly" onclick="window.setBillingCycle('monthly')" type="button">Monthly</button><button aria-pressed="false" class="relative z-10 px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white flex items-center gap-1.5" id="toggle-annual" onclick="window.setBillingCycle('annual')" type="button"><span>Annual</span><span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Save 20%</span></button></div><div class="h-4 w-px bg-white/10 hidden sm:block"></div><div aria-label="Currency selection" class="inline-flex items-center p-1 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md relative" id="currency-toggle-container" role="group"><button aria-pressed="true" class="relative z-10 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-white/15 text-white shadow-sm flex items-center gap-1.5" id="toggle-curr-usd" onclick="window.setCurrency('USD')" type="button"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span><span>$ USD</span></button><button aria-pressed="false" class="relative z-10 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white flex items-center gap-1.5" id="toggle-curr-inr" onclick="window.setCurrency('INR')" type="button"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>₹ INR</span></button></div></div><section aria-label="Key Pillars" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"><!-- CARD 1 — FREE (Completely Unchanged) -->
+<article class="feature-card rounded-[28px] p-7 flex flex-col justify-between overflow-hidden group cursor-pointer relative border border-emerald-500/30" data-purpose="plan-free">
+<div aria-hidden="true" class="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[28px] glow-green"></div>
+<div class="relative z-10 flex flex-col flex-grow">
+<div class="mb-5">
+<div class="text-xs uppercase tracking-wider font-semibold text-zinc-400 mb-2">Starter</div>
+<h2 class="text-2xl font-bold text-white tracking-tight">Free</h2>
+<div class="mt-2 mb-2"><div class="flex items-baseline gap-1.5"><span class="text-4xl font-extrabold text-white tracking-tight" id="price-free">$0</span><span class="text-sm text-zinc-400 font-normal">/ forever</span></div><div class="text-[11px] h-4 text-transparent select-none">free forever</div></div>
+<p class="text-[13px] text-zinc-300 leading-snug font-normal">Perfect for getting started with MyBilling.</p>
+</div>
+<div class="w-full h-px bg-white/[0.06] mb-5"></div>
+<ul class="space-y-2.5 text-xs text-zinc-300 flex-grow mb-6"><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Basic billing &amp; invoice creation</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Up to 50 invoices per month</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Basic product management</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Shop and customer management</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Basic sales overview</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Standard PDF invoice export</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Manual payment tracking</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Standard support</span></li></ul>
+</div>
+<div class="relative z-10 pt-4">
+<button class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-emerald-200 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 transition-colors duration-200 flex items-center justify-center gap-1.5">
+      Get Started Free
+    </button>
+</div>
+</article>
+<!-- CARD 2 — PLUS (Highlighted + Floating Message Bubble) -->
+<article class="feature-card rounded-[28px] p-7 flex flex-col justify-between overflow-hidden group cursor-pointer relative border border-blue-500/30" data-purpose="plan-plus">
+<div aria-hidden="true" class="glow-blue absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[28px]"></div>
+<div class="relative z-10 flex flex-col flex-grow">
+<div class="mb-5">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs uppercase tracking-wider font-semibold text-blue-200">Growth</span>
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wider uppercase bg-blue-950/40 border border-blue-500/30 text-blue-200">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>Most Popular
+        </span>
+</div>
+<h2 class="text-2xl font-bold text-white tracking-tight">Plus</h2>
+<div class="mt-2 mb-2">
+<div class="flex items-baseline gap-1.5">
+<span class="text-4xl font-extrabold text-white tracking-tight" id="price-plus">$10</span>
+<span class="text-sm text-zinc-400 font-normal">/ month</span>
+</div>
+<div class="text-[11px] text-blue-300 font-medium h-4 opacity-0 transition-opacity duration-200" id="note-plus">billed annually ($96/yr)</div>
+</div>
+<!-- Floating Chat-Style Bubble for Plus Plan -->
+<div class="mt-1 mb-2.5 flex items-center">
+
+</div>
+<p class="text-[13px] text-zinc-300 leading-snug font-normal">For growing businesses that need more control.</p>
+</div>
+<div class="w-full h-px bg-white/[0.06] mb-5"></div>
+<ul class="space-y-2.5 text-xs text-zinc-300 flex-grow mb-6">
+<li class="flex items-center gap-2 font-medium text-white">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Everything in Free</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Unlimited invoices</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Advanced product management</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Complete invoice editing</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Advanced sales and profit analytics</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Shop-wise purchase &amp; sales history</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>PDF customization and sharing</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Advanced payment &amp; udhaar tracking</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Data export and business reports</span>
+</li>
+<li class="flex items-center gap-2">
+<svg class="w-4 h-4 text-blue-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg>
+<span>Priority support</span>
+</li>
+</ul>
+</div>
+<div class="relative z-10 pt-4">
+<button class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-gradient-to-tr from-blue-600 to-indigo-500 hover:opacity-90 shadow-lg shadow-indigo-500/20 transition-all duration-200 flex items-center justify-center gap-1.5">
+      Upgrade to Plus
+    </button>
+</div>
+</article>
+<!-- CARD 3 — MAX (Distinctive Premium + Prominent Chat Bubble Badge) -->
+<article class="feature-card rounded-[28px] p-7 flex flex-col justify-between overflow-hidden group cursor-pointer relative border border-white/[0.06]" data-purpose="plan-max">
+<div aria-hidden="true" class="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[28px] glow-orange"></div>
+<div class="relative z-10 flex flex-col flex-grow">
+<div class="mb-5"><div class="flex items-center justify-between mb-2"><span class="text-xs uppercase tracking-wider font-semibold text-amber-200">Enterprise Scale</span></div><h2 class="text-2xl font-bold text-white tracking-tight">Max</h2><div class="mt-2 mb-2"><div class="flex items-baseline gap-1.5"><span class="text-4xl font-extrabold text-white tracking-tight" id="price-max">$50</span><span class="text-sm text-zinc-400 font-normal">/ month</span></div><div class="text-[11px] font-medium h-4 opacity-0 transition-opacity duration-200 text-amber-200" id="note-max">billed annually ($480/yr)</div></div><div class="mt-1 mb-2.5 flex items-center"></div><p class="text-[13px] text-zinc-300 leading-snug font-normal">Maximum control. Maximum business intelligence.</p></div>
+<div class="w-full h-px bg-white/[0.06] mb-5"></div>
+<ul class="space-y-2.5 text-xs text-zinc-300 flex-grow mb-6"><li class="flex items-center gap-2 font-medium text-white"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Everything in Plus</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Advanced inventory &amp; stock management</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Purchase &amp; supplier management</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Automated business insights</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Advanced profit &amp; performance reports</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Multi-user access &amp; team management</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Automated data backup</span></li><li class="flex items-center gap-2"><svg class="w-4 h-4 text-amber-200 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill-rule="evenodd"></path></svg><span>Exclusive premium features</span></li></ul>
+</div>
+<div class="relative z-10 pt-4">
+<button class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-amber-200 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 transition-colors duration-200 flex items-center justify-center gap-1.5">
+      Go Max
+    </button>
+</div>
+</article></section>
+<!-- END: CardsGrid -->
+<!-- BEGIN: ValuePropositionRow -->
+<footer class="pt-2"><ul class="flex flex-wrap items-center gap-6 md:gap-8 text-xs md:text-[13px] font-medium text-zinc-400">
+<!-- Item 1: Lightning Fast Billing -->
+<li class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5 text-zinc-400" fill="currentColor" viewBox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+</svg>
+<span class="text-zinc-300">Lightning Fast Billing</span>
+</li>
+<!-- Item 2: 100% FMCG & GST Ready -->
+<li class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="8" stroke-width="2"></circle>
+<path d="M12 2v2m0 16v2m10-10h-2M4 12H2m13 0a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="text-zinc-300">100% FMCG &amp; GST Ready</span>
+</li>
+<!-- Item 3: Zero Reconciliation Errors -->
+<li class="flex items-center gap-2">
+<svg class="w-3.5 h-3.5 text-zinc-400" fill="currentColor" viewBox="0 0 20 20">
+<path clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fill-rule="evenodd"></path>
+</svg>
+<span class="text-zinc-300">Zero Reconciliation Errors</span>
+</li>
+</ul></footer>
+<!-- END: ValuePropositionRow -->
+</div>
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: PageFooter -->
+<footer class="w-full border-t border-white/[0.04] py-6 text-center text-xs text-zinc-600"><div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4"><p class="text-xs text-zinc-600 font-normal">© 2025 MyBilling Inc. All rights reserved.</p><div class="flex items-center gap-3"><a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.04] hover:bg-white/10 border border-white/[0.06] hover:border-white/20 text-zinc-400 hover:text-white transition-all duration-200"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></a><a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" class="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.04] hover:bg-white/10 border border-white/[0.06] hover:border-white/20 text-zinc-400 hover:text-white transition-all duration-200"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg></a><a href="mailto:hello@mybilling.com" aria-label="Email" class="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.04] hover:bg-white/10 border border-white/[0.06] hover:border-white/20 text-zinc-400 hover:text-white transition-all duration-200"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg></a></div></div></footer><script>(function(){let currentBilling='monthly';let currentCurrency='USD';const prices={USD:{monthly:{free:'$0',plus:'$10',max:'$50'},annual:{free:'$0',plus:'$8',max:'$40'},notePlus:'billed annually ($96/yr)',noteMax:'billed annually ($480/yr)'},INR:{monthly:{free:'₹0',plus:'₹799',max:'₹3,999'},annual:{free:'₹0',plus:'₹640',max:'₹3,200'},notePlus:'billed annually (₹7,680/yr)',noteMax:'billed annually (₹38,400/yr)'}};function updateUI(){const p=prices[currentCurrency][currentBilling];const pFree=document.getElementById('price-free');const pPlus=document.getElementById('price-plus');const pMax=document.getElementById('price-max');const nPlus=document.getElementById('note-plus');const nMax=document.getElementById('note-max');if(pFree)pFree.textContent=p.free;if(pPlus)pPlus.textContent=p.plus;if(pMax)pMax.textContent=p.max;if(nPlus){nPlus.textContent=prices[currentCurrency].notePlus;if(currentBilling==='annual'){nPlus.classList.remove('opacity-0');}else{nPlus.classList.add('opacity-0');}}if(nMax){nMax.textContent=prices[currentCurrency].noteMax;if(currentBilling==='annual'){nMax.classList.remove('opacity-0');}else{nMax.classList.add('opacity-0');}}}window.setBillingCycle=function(mode){currentBilling=mode;const btnM=document.getElementById('toggle-monthly');const btnA=document.getElementById('toggle-annual');if(btnM&&btnA){if(mode==='annual'){btnM.className='relative z-10 px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white';btnM.setAttribute('aria-pressed','false');btnA.className='relative z-10 px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-white/15 text-white shadow-sm flex items-center gap-1.5';btnA.setAttribute('aria-pressed','true');}else{btnA.className='relative z-10 px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white flex items-center gap-1.5';btnA.setAttribute('aria-pressed','false');btnM.className='relative z-10 px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-white/15 text-white shadow-sm';btnM.setAttribute('aria-pressed','true');}}updateUI();};window.setCurrency=function(curr){currentCurrency=curr;const btnUSD=document.getElementById('toggle-curr-usd');const btnINR=document.getElementById('toggle-curr-inr');if(btnUSD&&btnINR){if(curr==='INR'){btnUSD.className='relative z-10 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white flex items-center gap-1.5';btnUSD.setAttribute('aria-pressed','false');btnINR.className='relative z-10 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-white/15 text-white shadow-sm flex items-center gap-1.5';btnINR.setAttribute('aria-pressed','true');}else{btnINR.className='relative z-10 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-zinc-400 hover:text-white flex items-center gap-1.5';btnINR.setAttribute('aria-pressed','false');btnUSD.className='relative z-10 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-white/15 text-white shadow-sm flex items-center gap-1.5';btnUSD.setAttribute('aria-pressed','true');}}updateUI();};})();</script>
+<!-- END: PageFooter -->
+
+
+
+
+<div id="snapdom-sandbox" data-snapdom-sandbox="true" aria-hidden="true" style="position: absolute; left: -9999px; top: -9999px; width: 0px; height: 0px; overflow: hidden;"></div></body></html>

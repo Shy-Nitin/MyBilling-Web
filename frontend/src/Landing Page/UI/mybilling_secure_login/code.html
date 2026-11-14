@@ -1,0 +1,220 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_blank" name="shell-type"><title>MyBilling</title><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"error":"#ba1a1a","on-surface":"#131b2e","on-primary":"#ffffff","text-muted":"#64748B","secondary-container":"#6063ee","on-tertiary":"#ffffff","on-primary-container":"#dad7ff","on-secondary":"#ffffff","primary-container":"#4f46e5","inverse-on-surface":"#eef0ff","surface":"#faf8ff","primary":"#3525cd","on-secondary-fixed-variant":"#2f2ebe","on-primary-fixed":"#0f0069","canvas-bg":"#FAFBFC","surface-card":"#FFFFFF","primary-fixed-dim":"#c3c0ff","surface-container-highest":"#dae2fd","accent-violet-light":"#818CF8","secondary-fixed-dim":"#c0c1ff","background":"#faf8ff","error-container":"#ffdad6","inverse-primary":"#c3c0ff","tertiary-fixed-dim":"#4cd7f6","on-tertiary-fixed-variant":"#004e5c","on-primary-fixed-variant":"#3323cc","surface-dim":"#d2d9f4","tertiary-container":"#006a7c","on-secondary-fixed":"#07006c","accent-lavender":"#D0B2FF","secondary":"#4648d4","on-error":"#ffffff","text-secondary":"#334155","on-tertiary-container":"#93e8ff","on-background":"#131b2e","tertiary-fixed":"#acedff","surface-variant":"#dae2fd","on-tertiary-fixed":"#001f26","outline-variant":"#c7c4d8","on-error-container":"#93000a","border-subtle":"#F1F5F9","surface-container-lowest":"#ffffff","surface-bright":"#faf8ff","success-emerald":"#10B981","warning-amber":"#F59E0B","secondary-fixed":"#e1e0ff","surface-container":"#eaedff","primary-fixed":"#e2dfff","inverse-surface":"#283044","surface-tint":"#4d44e3","surface-container-low":"#f2f3ff","outline":"#777587","tertiary":"#00505f","on-secondary-container":"#fffbff","danger-rose":"#E8400D","on-surface-variant":"#464555","surface-container-high":"#e2e7ff","border-strong":"#E2E8F0"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"gutter-mobile":"0.75rem","space-xs":"0.25rem","space-lg":"1.5rem","margin":"2rem","margin-mobile":"1rem","space-xl":"2.5rem","space-sm":"0.5rem","gutter":"1.5rem","space-md":"1rem"},"fontFamily":{"label-mono-lg":["JetBrains Mono"],"headline-lg":["Geist"],"display-hero-mobile":["Geist"],"headline-sm":["Geist"],"headline-md":["Geist"],"headline-lg-mobile":["Geist"],"label-mono-sm":["JetBrains Mono"],"display-hero":["Geist"],"body-lg":["Geist"],"body-md":["Geist"],"body-sm":["Geist"]},"fontSize":{"label-mono-lg":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"500"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.025em","fontWeight":"600"}],"display-hero-mobile":["36px",{"lineHeight":"44px","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-sm":["18px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-md":["24px",{"lineHeight":"32px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-lg-mobile":["26px",{"lineHeight":"34px","letterSpacing":"-0.02em","fontWeight":"600"}],"label-mono-sm":["11px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"500"}],"display-hero":["56px",{"lineHeight":"64px","letterSpacing":"-0.03em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased min-h-screen"><main class="w-full bg-surface min-h-screen flex items-center justify-center p-margin"><div class="flex flex-col w-full items-center justify-center relative overflow-hidden py-12 px-4 selection:bg-primary selection:text-on-primary">
+<!-- Subtle Ambient Radiant Backdrops -->
+<div class="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-secondary-container/10 blur-[100px] pointer-events-none"></div>
+<div class="absolute -bottom-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-tertiary-fixed/20 blur-[120px] pointer-events-none"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-[34rem] bg-gradient-to-tr from-primary/5 via-tertiary/5 to-accent-lavender/10 rounded-full blur-[90px] pointer-events-none"></div>
+<!-- Main Container -->
+<div class="relative w-full max-w-[460px] z-10">
+<!-- Top Meta Security Chip -->
+<div class="flex items-center justify-center gap-space-xs mb-space-md">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high/60 backdrop-blur-md shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-success-emerald animate-pulse"></span>
+<span class="font-label-mono-sm text-label-mono-sm text-text-secondary tracking-wide uppercase">Institutional Tier Security</span>
+</div>
+</div>
+<!-- Elevated Auth Card -->
+<div class="relative rounded-xl bg-surface-container-lowest/90 backdrop-blur-xl shadow-xl shadow-primary/5 p-8 md:p-10 transition-all duration-300">
+<!-- Brand Logo Presentation -->
+<div class="flex flex-col items-center text-center">
+<div class="relative group">
+<div class="absolute -inset-1.5 rounded-2xl bg-gradient-to-r from-primary-container via-accent-violet-light to-tertiary-fixed opacity-70 blur-md group-hover:opacity-100 transition duration-500"></div>
+<div class="relative w-16 h-16 rounded-xl bg-surface-card p-2 shadow-sm flex items-center justify-center overflow-hidden">
+<img alt="MyBilling Logo" class="w-full h-full object-contain transform transition-transform duration-300 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida/ALJJyrAQVfDDexh_ZsZb15LczYwMRMsrixkQkulhe_xzzESz3tZ9l0BKfc1kK-5Ft11cbrdbRPeOGtwZIfBx8s08MiWm7qdXikyKTmKpcdVuJs2oHMajhWnjFV4UL7wxTDoumACEl-4BYvqieNOJS6qeZramrPVkUebptrAOoKuCHVphDneb4jAptvx9casnNbV_Kew0vtVelIhY8aPgbd0kBaZlds2U9u17eOBMoKiSoDZRDQ">
+</div>
+</div>
+<h1 class="mt-space-lg font-headline-md text-headline-md text-on-surface tracking-tight">
+          Welcome back to MyBilling
+        </h1>
+<p class="mt-space-xs font-body-md text-body-md text-text-muted max-w-sm">
+          Enter your credentials to access your distributor dashboard.
+        </p>
+</div>
+<!-- Credential Form -->
+<form class="mt-space-xl flex flex-col gap-5" id="loginForm" novalidate="" onsubmit="return false;">
+<!-- Email Input -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-mono-sm text-label-mono-sm text-text-secondary uppercase" for="email">
+            Work Email
+          </label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3.5 text-text-muted pointer-events-none text-xl transition-colors">
+              mail
+            </span>
+<input class="w-full h-11 pl-11 pr-4 bg-surface-container-low focus:bg-surface-card text-on-surface placeholder:text-text-muted/60 rounded-lg font-body-md text-body-md shadow-inner transition-all duration-200 outline-none focus:ring-2 focus:ring-primary/20" id="email" name="email" placeholder="name@company.com" required="" type="email">
+</div>
+<span class="font-body-sm text-body-sm text-error hidden items-center gap-1 mt-0.5" id="emailError">
+<span class="material-symbols-outlined text-sm">error</span> Please enter a valid corporate email.
+          </span>
+</div>
+<!-- Password Input -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<label class="font-label-mono-sm text-label-mono-sm text-text-secondary uppercase" for="password">
+              Password
+            </label>
+<a class="font-body-sm text-body-sm text-primary hover:text-secondary-container transition-colors focus:outline-none" href="/forgot-password">
+              Forgot password?
+            </a>
+</div>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3.5 text-text-muted pointer-events-none text-xl transition-colors">
+              lock
+            </span>
+<input class="w-full h-11 pl-11 pr-11 bg-surface-container-low focus:bg-surface-card text-on-surface placeholder:text-text-muted/60 rounded-lg font-body-md text-body-md shadow-inner transition-all duration-200 outline-none focus:ring-2 focus:ring-primary/20" id="password" name="password" placeholder="••••••••••••" required="" type="password">
+<button aria-label="Toggle password visibility" class="absolute right-2.5 p-1 rounded-md text-text-muted hover:text-on-surface transition-colors focus:outline-none flex items-center justify-center" id="togglePassword" type="button">
+<span class="material-symbols-outlined text-xl" id="passwordEyeIcon">visibility</span>
+</button>
+</div>
+<span class="font-body-sm text-body-sm text-error hidden items-center gap-1 mt-0.5" id="passwordError">
+<span class="material-symbols-outlined text-sm">error</span> Password must be at least 8 characters.
+          </span>
+</div>
+<!-- Remember Me Checkbox -->
+<div class="flex items-center justify-between pt-1">
+<label class="relative flex items-center gap-2.5 cursor-pointer select-none group"><input class="peer sr-only" id="remember" name="remember" type="checkbox"><div class="w-4 h-4 rounded bg-surface-container-highest border border-outline-variant/30 peer-checked:bg-primary peer-checked:border-primary peer-checked:shadow-sm flex items-center justify-center transition-all duration-200 active:scale-95"><svg class="w-3 h-3 text-white scale-0 opacity-0 peer-checked:scale-100 peer-checked:opacity-100 transition-all duration-300 ease-out" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><polyline class="transition-all duration-500 ease-out" points="20 6 9 17 4 12" style="stroke-dasharray: 24; stroke-dashoffset: 0;"></polyline></svg></div><span class="font-body-sm text-body-sm text-text-secondary group-hover:text-on-surface transition-colors">Remember me for 30 days</span></label>
+</div>
+<!-- Sign In Submit Button -->
+<button class="relative w-full h-11 mt-1 bg-primary text-on-primary font-body-md text-body-md font-medium rounded-lg flex items-center justify-center gap-2 overflow-hidden shadow-md shadow-primary/25 hover:bg-secondary-container hover:shadow-lg hover:shadow-primary/30 active:scale-[0.99] transition-all duration-200 group" id="submitBtn" type="submit">
+<span class="relative z-10 flex items-center gap-2">
+            Sign In to Dashboard
+            <span class="material-symbols-outlined text-lg transition-transform duration-200 group-hover:translate-x-1">
+              arrow_forward
+            </span>
+</span>
+<!-- Dynamic Shimmer Effect -->
+<div class="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 ease-in-out pointer-events-none"></div>
+</button>
+</form>
+<!-- SSO Divider -->
+<div class="relative my-7 flex items-center justify-center">
+<div class="w-full h-px bg-surface-container-highest"></div>
+<span class="absolute px-3 bg-surface-card font-label-mono-sm text-label-mono-sm text-text-muted uppercase tracking-wider">
+          Or continue with
+        </span>
+</div>
+<!-- Single Sign-On Provider Stack -->
+<div class="grid grid-cols-2 gap-3">
+<!-- Google SSO -->
+<button class="h-10 px-3 flex items-center justify-center gap-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-body-sm text-body-sm shadow-sm transition-all duration-150 active:scale-[0.98] group" type="button">
+<svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"></path>
+</svg>
+<span class="font-medium">Google</span>
+</button>
+<!-- Microsoft SSO -->
+<button class="h-10 px-3 flex items-center justify-center gap-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-body-sm text-body-sm shadow-sm transition-all duration-150 active:scale-[0.98] group" type="button">
+<svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 21 21">
+<rect fill="#f25022" height="9" width="9" x="1" y="1"></rect>
+<rect fill="#7fba00" height="9" width="9" x="11" y="1"></rect>
+<rect fill="#00a4ef" height="9" width="9" x="1" y="11"></rect>
+<rect fill="#ffb900" height="9" width="9" x="11" y="11"></rect>
+</svg>
+<span class="font-medium">Microsoft 365</span>
+</button>
+</div>
+<!-- Footer Inside Card -->
+<div class="mt-8 pt-6 border-t-0 bg-surface-container-low/40 -mx-8 -mb-8 md:-mx-10 md:-mb-10 px-8 py-5 rounded-b-xl text-center">
+<p class="font-body-sm text-body-sm text-text-secondary">
+          Don't have a MyBilling account? 
+          <a class="font-medium text-primary hover:text-secondary-container transition-colors ml-1 inline-flex items-center gap-0.5" href="/signup">
+            Sign up for free
+            <span class="material-symbols-outlined text-xs">open_in_new</span>
+</a>
+</p>
+</div>
+</div>
+<!-- Security & Trust Indicators -->
+<div class="mt-6 flex flex-col items-center gap-2 text-center">
+<div class="inline-flex items-center gap-2 text-text-muted">
+<div class="relative flex items-center justify-center shrink-0 w-4 h-4 rounded-full bg-success-emerald/10 text-success-emerald"><svg class="w-3.5 h-3.5 text-success-emerald group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path><path class="animate-draw-check draw-on-hover" d="M9 12l2 2 4-4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg></div>
+<span class="font-label-mono-sm text-label-mono-sm tracking-wide">
+          256-bit SSL Encrypted • SOC2 Type II Certified
+        </span>
+</div>
+<div class="flex items-center justify-center gap-4 text-text-muted font-body-sm text-body-sm">
+<a class="hover:text-on-surface transition-colors" href="/privacy">Privacy Policy</a>
+<span>•</span>
+<a class="hover:text-on-surface transition-colors" href="/terms">Terms of Service</a>
+<span>•</span>
+<a class="hover:text-on-surface transition-colors" href="/status">System Status</a>
+</div>
+</div>
+</div>
+<!-- Interactive Logic -->
+<script>
+    (function initLoginInteractivity() {
+      const togglePasswordBtn = document.getElementById('togglePassword');
+      const passwordInput = document.getElementById('password');
+      const passwordEyeIcon = document.getElementById('passwordEyeIcon');
+      const loginForm = document.getElementById('loginForm');
+      const emailInput = document.getElementById('email');
+      const emailError = document.getElementById('emailError');
+      const passwordError = document.getElementById('passwordError');
+
+      // Password toggle interaction
+      if (togglePasswordBtn && passwordInput && passwordEyeIcon) {
+        togglePasswordBtn.addEventListener('click', () => {
+          const isPassword = passwordInput.getAttribute('type') === 'password';
+          passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+          passwordEyeIcon.textContent = isPassword ? 'visibility_off' : 'visibility';
+        });
+      }
+
+      // Quick validation feedback simulation
+      if (loginForm && emailInput && passwordInput) {
+        loginForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          let valid = true;
+
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(emailInput.value.trim())) {
+            emailError.classList.remove('hidden');
+            emailError.classList.add('flex');
+            valid = false;
+          } else {
+            emailError.classList.add('hidden');
+            emailError.classList.remove('flex');
+          }
+
+          if (passwordInput.value.length < 8) {
+            passwordError.classList.remove('hidden');
+            passwordError.classList.add('flex');
+            valid = false;
+          } else {
+            passwordError.classList.add('hidden');
+            passwordError.classList.remove('flex');
+          }
+
+          if (valid) {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+              <span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              <span>Authenticating...</span>
+            `;
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 1000);
+          }
+        });
+
+        // Clear error states on user input
+        emailInput.addEventListener('input', () => {
+          emailError.classList.add('hidden');
+          emailError.classList.remove('flex');
+        });
+
+        passwordInput.addEventListener('input', () => {
+          passwordError.classList.add('hidden');
+          passwordError.classList.remove('flex');
+        });
+      }
+    })();
+  </script>
+</div></main>
+
+</body></html>

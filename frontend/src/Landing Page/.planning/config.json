@@ -1,0 +1,17 @@
+{
+  "project": "MyBilling Homepage",
+  "version": "1.0.0",
+  "stack": {
+    "framework": "React 19",
+    "bundler": "Vite",
+    "language": "TypeScript",
+    "styling": "Tailwind CSS v4",
+    "icons": "Lucide React & Phosphor Icons",
+    "animation": "Motion"
+  },
+  "workflow": {
+    "mode": "frontend-only",
+    "backend": false,
+    "persistence": "memory-only"
+  }
+}

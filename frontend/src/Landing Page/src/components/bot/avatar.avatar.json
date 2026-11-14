@@ -1,0 +1,64 @@
+{
+  "schema": "bible-strong/avatar-definition",
+  "schemaVersion": 1,
+  "name": "Strobi",
+  "body": {
+    "primary": { "type": "sphere", "width": 100, "height": 100, "depth": 100, "roundness": 1 },
+    "nodes": []
+  },
+  "colors": {
+    "body": "#3525cd",
+    "eyes": "#ffffff"
+  },
+  "expressions": {
+    "neutral": {
+      "head": { "x": 0, "y": 0, "z": 0 },
+      "eyes": {
+        "left": { "width": 12, "height": 16, "x": -16, "y": 0, "angle": 0 },
+        "right": { "width": 12, "height": 16, "x": 16, "y": 0, "angle": 0 },
+        "spacing": 32
+      },
+      "perspective": 1,
+      "motion": { "eyes": "microSaccades", "body": "slowDrift" }
+    },
+    "happy": {
+      "head": { "x": 0, "y": -4, "z": 0 },
+      "eyes": {
+        "left": { "width": 14, "height": 10, "x": -16, "y": -2, "angle": 10 },
+        "right": { "width": 14, "height": 10, "x": 16, "y": -2, "angle": -10 },
+        "spacing": 32
+      },
+      "perspective": 1,
+      "motion": { "eyes": "none", "body": "slowDrift" }
+    },
+    "sleeping": {
+      "head": { "x": 0, "y": 6, "z": 0 },
+      "eyes": {
+        "left": { "width": 12, "height": 4, "x": -16, "y": 4, "angle": 0 },
+        "right": { "width": 12, "height": 4, "x": 16, "y": 4, "angle": 0 },
+        "spacing": 32
+      },
+      "perspective": 1,
+      "motion": { "eyes": "none", "body": "none" }
+    }
+  },
+  "expressionOrder": ["neutral", "happy", "sleeping"],
+  "animations": {
+    "idle": {
+      "playbackMode": "loop",
+      "steps": [
+        { "expression": "neutral", "holdMs": 2000, "transitionMs": 300, "transition": "smooth" },
+        { "expression": "happy", "holdMs": 1500, "transitionMs": 300, "transition": "spring" }
+      ],
+      "blink": { "enabled": true, "initialDelayMs": 1000, "minIntervalMs": 2000, "maxIntervalMs": 5000, "durationMs": 150 }
+    },
+    "sleeping": {
+      "playbackMode": "loop",
+      "steps": [
+        { "expression": "sleeping", "holdMs": 3000, "transitionMs": 500, "transition": "smooth" }
+      ],
+      "blink": { "enabled": false, "initialDelayMs": 0, "minIntervalMs": 1000, "maxIntervalMs": 2000, "durationMs": 100 }
+    }
+  },
+  "animationOrder": ["idle", "sleeping"]
+}
