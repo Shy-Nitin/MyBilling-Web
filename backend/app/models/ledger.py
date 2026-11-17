@@ -6,7 +6,8 @@ class LedgerEntry(Base):
     __tablename__ = "ledger_entries"
 
     id = Column(Integer, primary_key=True, index=True)
-    entry_number = Column(String(50), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, default=1, index=True)
+    entry_number = Column(String(50), index=True, nullable=False)
     transaction_date = Column(DateTime, default=datetime.utcnow, index=True)
     reference_type = Column(String(50), nullable=False) # SALE_INVOICE, PURCHASE_GRN, PAYMENT_RECEIVED, SUPPLIER_PAYMENT, EXPENSE
     reference_id = Column(String(50), nullable=True) # e.g. INV-2026-001 or PO-2026-001

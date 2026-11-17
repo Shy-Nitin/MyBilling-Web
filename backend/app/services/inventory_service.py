@@ -14,8 +14,8 @@ def get_stock_status(stock_qty: float, min_threshold: float) -> str:
     else:
         return "SAFE"
 
-def get_products(db: Session, search: Optional[str] = None, category: Optional[str] = None, status: Optional[str] = None) -> List[ProductResponse]:
-    query = db.query(Product).filter(Product.is_active == True)
+def get_products(db: Session, search: Optional[str] = None, category: Optional[str] = None, status: Optional[str] = None, user_id: int = 1) -> List[ProductResponse]:
+    query = db.query(Product).filter(Product.is_active == True, Product.user_id == user_id)
     
     if search:
         search_pattern = f"%{search}%"
@@ -43,8 +43,8 @@ def get_products(db: Session, search: Optional[str] = None, category: Optional[s
         
     return results
 
-def get_inventory_valuation(db: Session) -> dict:
-    products = db.query(Product).filter(Product.is_active == True).all()
+def get_inventory_valuation(db: Session, user_id: int = 1) -> dict:
+    products = db.query(Product).filter(Product.is_active == True, Product.user_id == user_id).all()
     total_cost_valuation = sum(p.landed_cost * max(0.0, p.stock_qty) for p in products)
     total_wholesale_valuation = sum(p.wholesale_rate * max(0.0, p.stock_qty) for p in products)
     total_items = len(products)

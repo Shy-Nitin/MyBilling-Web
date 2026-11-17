@@ -4,16 +4,21 @@ from typing import List
 from backend.app.core.database import get_db
 from backend.app.models.route import Route
 from backend.app.models.shop import Shop
+from backend.app.models.user import User
 from backend.app.schemas.route import RouteCreate, RouteUpdate, RouteResponse
+from backend.app.api.deps import get_current_user
 
 router = APIRouter()
 
 @router.get("", response_model=List[RouteResponse])
-def get_routes(db: Session = Depends(get_db)):
-    routes = db.query(Route).order_by(Route.name.asc()).all()
+def get_routes(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    routes = db.query(Route).filter(Route.user_id == current_user.id).order_by(Route.name.asc()).all()
     results = []
     for r in routes:
-        count = db.query(Shop).filter(Shop.route_id == r.id).count()
+        count = db.query(Shop).filter(Shop.route_id == r.id, Shop.user_id == current_user.id).count()
         resp = RouteResponse(
             id=r.id,
             name=r.name,
@@ -27,13 +32,21 @@ def get_routes(db: Session = Depends(get_db)):
     return results
 
 @router.post("", response_model=RouteResponse)
-def create_route(route_in: RouteCreate, db: Session = Depends(get_db)):
+def create_route(
+    route_in: RouteCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     clean_name = route_in.name.strip()
-    existing = db.query(Route).filter(Route.name.ilike(clean_name)).first()
+    existing = db.query(Route).filter(
+        Route.name.ilike(clean_name),
+        Route.user_id == current_user.id
+    ).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"Route '{clean_name}' already exists.")
 
     route = Route(
+        user_id=current_user.id,
         name=clean_name,
         code=route_in.code,
         description=route_in.description,
@@ -53,11 +66,18 @@ def create_route(route_in: RouteCreate, db: Session = Depends(get_db)):
     )
 
 @router.get("/{route_id}", response_model=RouteResponse)
-def get_route_by_id(route_id: int, db: Session = Depends(get_db)):
-    route = db.query(Route).filter(Route.id == route_id).first()
+def get_route_by_id(
+    route_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    route = db.query(Route).filter(
+        Route.id == route_id,
+        Route.user_id == current_user.id
+    ).first()
     if not route:
         raise HTTPException(status_code=404, detail="Route not found.")
-    count = db.query(Shop).filter(Shop.route_id == route.id).count()
+    count = db.query(Shop).filter(Shop.route_id == route.id, Shop.user_id == current_user.id).count()
     return RouteResponse(
         id=route.id,
         name=route.name,
@@ -69,8 +89,16 @@ def get_route_by_id(route_id: int, db: Session = Depends(get_db)):
     )
 
 @router.put("/{route_id}", response_model=RouteResponse)
-def update_route(route_id: int, route_in: RouteUpdate, db: Session = Depends(get_db)):
-    route = db.query(Route).filter(Route.id == route_id).first()
+def update_route(
+    route_id: int,
+    route_in: RouteUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    route = db.query(Route).filter(
+        Route.id == route_id,
+        Route.user_id == current_user.id
+    ).first()
     if not route:
         raise HTTPException(status_code=404, detail="Route not found.")
 
@@ -78,7 +106,11 @@ def update_route(route_id: int, route_in: RouteUpdate, db: Session = Depends(get
     if "name" in update_data and update_data["name"]:
         clean_name = update_data["name"].strip()
         if clean_name.lower() != route.name.lower():
-            dup = db.query(Route).filter(Route.name.ilike(clean_name), Route.id != route_id).first()
+            dup = db.query(Route).filter(
+                Route.name.ilike(clean_name),
+                Route.id != route_id,
+                Route.user_id == current_user.id
+            ).first()
             if dup:
                 raise HTTPException(status_code=400, detail=f"Route '{clean_name}' already exists.")
             route.name = clean_name
@@ -92,7 +124,7 @@ def update_route(route_id: int, route_in: RouteUpdate, db: Session = Depends(get
 
     db.commit()
     db.refresh(route)
-    count = db.query(Shop).filter(Shop.route_id == route.id).count()
+    count = db.query(Shop).filter(Shop.route_id == route.id, Shop.user_id == current_user.id).count()
     return RouteResponse(
         id=route.id,
         name=route.name,
@@ -104,13 +136,22 @@ def update_route(route_id: int, route_in: RouteUpdate, db: Session = Depends(get
     )
 
 @router.delete("/{route_id}")
-def delete_route(route_id: int, db: Session = Depends(get_db)):
-    route = db.query(Route).filter(Route.id == route_id).first()
+def delete_route(
+    route_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    route = db.query(Route).filter(
+        Route.id == route_id,
+        Route.user_id == current_user.id
+    ).first()
     if not route:
         raise HTTPException(status_code=404, detail="Route not found.")
 
-    # Safely detach shops from this route without deleting the shops
-    shop_count = db.query(Shop).filter(Shop.route_id == route_id).update({"route_id": None})
+    shop_count = db.query(Shop).filter(
+        Shop.route_id == route_id,
+        Shop.user_id == current_user.id
+    ).update({"route_id": None})
     route_name = route.name
     db.delete(route)
     db.commit()

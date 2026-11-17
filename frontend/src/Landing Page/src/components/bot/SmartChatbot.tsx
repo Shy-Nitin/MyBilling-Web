@@ -139,7 +139,11 @@ export function SmartChatbot() {
         el.scrollIntoView({ behavior: "smooth" });
       }
     } else if (act.route) {
-      window.location.href = act.route;
+      if (act.route === "/pricing") {
+        window.open(act.route, "_blank", "noopener,noreferrer");
+      } else {
+        window.location.href = act.route;
+      }
     }
   };
 

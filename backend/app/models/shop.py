@@ -7,6 +7,7 @@ class Shop(Base):
     __tablename__ = "shops"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, default=1, index=True)
     name = Column(String(200), nullable=False)
     owner_name = Column(String(100), nullable=True)
     phone = Column(String(20), index=True, nullable=True)

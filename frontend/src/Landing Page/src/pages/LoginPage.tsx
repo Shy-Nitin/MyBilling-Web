@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Logo } from "@/components/common/Logo";
+import { useAuth } from "@/context/AuthContext";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -8,10 +10,18 @@ export function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [generalError, setGeneralError] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let valid = true;
 
@@ -32,10 +42,15 @@ export function LoginPage() {
 
     if (valid) {
       setIsAuthenticating(true);
-      setTimeout(() => {
+      setGeneralError("");
+      try {
+        await login(email, password);
+        navigate("/dashboard");
+      } catch (err: any) {
+        setGeneralError(err.message || "Invalid email or password.");
+      } finally {
         setIsAuthenticating(false);
-        navigate("/");
-      }, 1000);
+      }
     }
   };
 
@@ -67,11 +82,7 @@ export function LoginPage() {
                 <Link to="/" className="relative group block">
                   <div className="absolute -inset-1.5 rounded-2xl bg-gradient-to-r from-primary-container via-accent-violet-light to-tertiary-fixed opacity-70 blur-md group-hover:opacity-100 transition duration-500" />
                   <div className="relative w-16 h-16 rounded-xl bg-surface-card p-2 shadow-sm flex items-center justify-center overflow-hidden">
-                    <img
-                      src="/logo.svg"
-                      alt="MyBilling Logo"
-                      className="w-full h-full object-contain transform transition-transform duration-300 group-hover:scale-105"
-                    />
+                    <Logo className="w-full h-full object-contain transform transition-transform duration-300 group-hover:scale-105" />
                   </div>
                 </Link>
                 <h1 className="mt-space-lg font-headline-md text-headline-md text-on-surface tracking-tight">
@@ -81,6 +92,14 @@ export function LoginPage() {
                   Enter your credentials to access your distributor dashboard.
                 </p>
               </div>
+
+              {/* General Error Banner */}
+              {generalError && (
+                <div className="mt-4 p-3 bg-error-container/40 border border-error/30 rounded-lg text-error text-body-sm flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">error</span>
+                  <span>{generalError}</span>
+                </div>
+              )}
 
               {/* Credential Form */}
               <form className="mt-space-xl flex flex-col gap-5" onSubmit={handleSubmit} noValidate>

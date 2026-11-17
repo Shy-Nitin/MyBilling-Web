@@ -7,7 +7,8 @@ class Invoice(Base):
     __tablename__ = "invoices"
 
     id = Column(Integer, primary_key=True, index=True)
-    invoice_number = Column(String(50), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, default=1, index=True)
+    invoice_number = Column(String(50), index=True, nullable=False)
     shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
     customer_name = Column(String(150), nullable=False)
     customer_phone = Column(String(20), nullable=True)
@@ -38,12 +39,8 @@ class InvoiceItem(Base):
     quantity = Column(Float, default=1.0)
     unit = Column(String(20), default="PCS")
     unit_rate = Column(Float, default=0.0) # Historical selling price at moment of sale
-    unit_cost = Column(Float, default=0.0) # Historical landed cost at moment of sale (for reporting only, never exposed on bills)
-    mrp = Column(Float, default=0.0)
-    discount_percent = Column(Float, default=0.0)
-    discount_amount = Column(Float, default=0.0)
+    landed_cost = Column(Float, default=0.0) # Historical purchase landed cost at moment of sale
     tax_rate = Column(Float, default=0.0)
-    tax_amount = Column(Float, default=0.0)
     total_amount = Column(Float, default=0.0)
 
     invoice = relationship("Invoice", back_populates="items")

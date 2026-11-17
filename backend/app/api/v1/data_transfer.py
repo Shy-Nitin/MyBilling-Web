@@ -9,6 +9,8 @@ from backend.app.core.database import get_db
 from backend.app.models.product import Product
 from backend.app.models.shop import Shop
 from backend.app.models.category import Category
+from backend.app.models.user import User
+from backend.app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -21,21 +23,23 @@ def export_mobile_data(
     include_products: bool = True,
     include_shops: bool = True,
     include_categories: bool = True,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Exports clean, mobile-compatible catalog and outlet data in JSON format.
+    Exports clean, mobile-compatible catalog and outlet data in JSON format for the tenant.
     Excludes sensitive invoices, profit numbers, and internal ledgers.
     """
     export_payload: Dict[str, Any] = {
         "version": "1.0",
-        "app": "Maya Billing Web Admin",
+        "app": "MyBilling Web Admin",
+        "user_email": current_user.email,
         "exported_at": datetime.utcnow().isoformat(),
         "exported_date": datetime.utcnow().strftime("%Y-%m-%d"),
     }
 
     if include_categories:
-        categories = db.query(Category).all()
+        categories = db.query(Category).filter(Category.user_id == current_user.id).all()
         export_payload["categories"] = [
             {
                 "id": c.id,
@@ -47,7 +51,7 @@ def export_mobile_data(
         ]
 
     if include_shops:
-        shops = db.query(Shop).filter(Shop.status != "Archived").all()
+        shops = db.query(Shop).filter(Shop.user_id == current_user.id, Shop.status != "Archived").all()
         export_payload["shops"] = [
             {
                 "id": s.id,
@@ -65,7 +69,7 @@ def export_mobile_data(
         ]
 
     if include_products:
-        products = db.query(Product).filter(Product.is_active == True).all()
+        products = db.query(Product).filter(Product.user_id == current_user.id, Product.is_active == True).all()
         export_payload["products"] = [
             {
                 "id": p.id,
@@ -85,7 +89,7 @@ def export_mobile_data(
             for p in products
         ]
 
-    filename = f"maya-billing-export-{datetime.utcnow().strftime('%Y-%m-%d')}.json"
+    filename = f"mybilling-export-{datetime.utcnow().strftime('%Y-%m-%d')}.json"
     return JSONResponse(
         content=export_payload,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
@@ -123,119 +127,105 @@ def _normalize_product_item(raw: Dict[str, Any]) -> Dict[str, Any]:
     name = raw.get("name") or raw.get("product_name") or raw.get("title") or ""
     sku = raw.get("sku") or raw.get("code") or raw.get("product_code") or ""
     rate = float(raw.get("wholesale_rate") or raw.get("rate") or raw.get("price") or raw.get("selling_price") or 0.0)
-    cost = float(raw.get("landed_cost") or raw.get("cost_price") or raw.get("purchase_rate") or (rate * 0.85))
-    mrp = float(raw.get("mrp") or raw.get("maximum_retail_price") or (rate * 1.15))
-    qty = float(raw.get("stock_qty") or raw.get("quantity") or raw.get("stock") or 0.0)
-    
+    cost = float(raw.get("landed_cost") or raw.get("purchase_rate") or raw.get("cost") or 0.0)
+    mrp = float(raw.get("mrp") or raw.get("max_retail_price") or (rate * 1.15))
+    stock = float(raw.get("stock_qty") or raw.get("stock") or raw.get("quantity") or raw.get("opening_stock") or 0.0)
+
     return {
-        "name": str(name).strip(),
-        "sku": str(sku).strip() if sku else None,
+        "sku": str(sku).strip().upper() if sku else None,
         "barcode": str(raw.get("barcode") or "").strip() or None,
-        "brand": raw.get("brand") or "General",
-        "category": raw.get("category") or raw.get("category_name") or "General",
-        "pack_size": raw.get("pack_size") or raw.get("size") or "1 Unit",
-        "wholesale_rate": rate,
-        "landed_cost": cost,
-        "mrp": mrp,
-        "stock_qty": qty,
-        "unit": str(raw.get("unit") or "PCS").upper(),
+        "name": str(name).strip(),
+        "brand": str(raw.get("brand") or "Generic").strip(),
+        "category": str(raw.get("category") or "General").strip(),
+        "pack_size": str(raw.get("pack_size") or "1 unit").strip(),
+        "landed_cost": round(cost, 2),
+        "wholesale_rate": round(rate, 2),
+        "mrp": round(mrp, 2),
+        "stock_qty": round(stock, 2),
         "min_stock_threshold": float(raw.get("min_stock_threshold") or 10.0),
-        "is_active": raw.get("is_active", True)
+        "unit": str(raw.get("unit") or "PCS").strip().upper(),
+        "is_active": bool(raw.get("is_active", True))
     }
 
 # ==========================================
-# IMPORT PREVIEW & EXECUTION
+# IMPORT ENDPOINTS
 # ==========================================
 
 @router.post("/preview-import")
-async def preview_mobile_import(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def preview_mobile_import(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
         content = await file.read()
         payload = json.loads(content.decode("utf-8"))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON file format: {str(e)}")
 
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=400, detail="Import file must contain a valid JSON object.")
-
-    # Detect collections
     raw_categories = payload.get("categories") or []
     raw_shops = payload.get("shops") or payload.get("outlets") or payload.get("stores") or []
     raw_products = payload.get("products") or payload.get("catalog") or payload.get("items") or []
 
-    categories_preview = []
-    cat_new_count = 0
-    cat_existing_count = 0
+    categories_new = 0
+    categories_match = 0
     for rc in raw_categories:
         if isinstance(rc, dict):
-            norm = _normalize_category_item(rc)
-            if norm["name"]:
-                exists = db.query(Category).filter(Category.name.ilike(norm["name"])).first() is not None
+            name = rc.get("name") or rc.get("category_name")
+            if name:
+                exists = db.query(Category).filter(Category.name.ilike(name.strip()), Category.user_id == current_user.id).first()
                 if exists:
-                    cat_existing_count += 1
+                    categories_match += 1
                 else:
-                    cat_new_count += 1
-                categories_preview.append({"item": norm, "status": "exists" if exists else "new"})
+                    categories_new += 1
 
-    shops_preview = []
-    shop_new_count = 0
-    shop_existing_count = 0
+    shops_new = 0
+    shops_match = 0
     for rs in raw_shops:
         if isinstance(rs, dict):
-            norm = _normalize_shop_item(rs)
-            if norm["name"]:
-                query = db.query(Shop).filter(Shop.name.ilike(norm["name"]))
-                if norm["phone"]:
-                    query = db.query(Shop).filter((Shop.name.ilike(norm["name"])) | (Shop.phone == norm["phone"]))
-                exists = query.first() is not None
-                if exists:
-                    shop_existing_count += 1
-                else:
-                    shop_new_count += 1
-                shops_preview.append({"item": norm, "status": "exists" if exists else "new"})
+            name = rs.get("name") or rs.get("shop_name")
+            phone = rs.get("phone") or rs.get("mobile")
+            match = None
+            if phone:
+                match = db.query(Shop).filter(Shop.phone == str(phone).strip(), Shop.user_id == current_user.id).first()
+            if not match and name:
+                match = db.query(Shop).filter(Shop.name.ilike(str(name).strip()), Shop.user_id == current_user.id).first()
+            if match:
+                shops_match += 1
+            else:
+                shops_new += 1
 
-    products_preview = []
-    prod_new_count = 0
-    prod_existing_count = 0
+    products_new = 0
+    products_match = 0
     for rp in raw_products:
         if isinstance(rp, dict):
-            norm = _normalize_product_item(rp)
-            if norm["name"]:
-                # Match by SKU, barcode, or name
-                exists = False
-                if norm["sku"]:
-                    exists = db.query(Product).filter(Product.sku == norm["sku"]).first() is not None
-                if not exists and norm["barcode"]:
-                    exists = db.query(Product).filter(Product.barcode == norm["barcode"]).first() is not None
-                if not exists:
-                    exists = db.query(Product).filter(Product.name.ilike(norm["name"])).first() is not None
-
-                if exists:
-                    prod_existing_count += 1
-                else:
-                    prod_new_count += 1
-                products_preview.append({"item": norm, "status": "exists" if exists else "new"})
+            sku = rp.get("sku") or rp.get("code")
+            name = rp.get("name") or rp.get("product_name")
+            match = None
+            if sku:
+                match = db.query(Product).filter(Product.sku == str(sku).strip().upper(), Product.user_id == current_user.id).first()
+            if not match and name:
+                match = db.query(Product).filter(Product.name.ilike(str(name).strip()), Product.user_id == current_user.id).first()
+            if match:
+                products_match += 1
+            else:
+                products_new += 1
 
     return {
-        "valid": True,
-        "source_app": payload.get("app", "Maya Mobile / External"),
-        "exported_at": payload.get("exported_at"),
-        "summary": {
-            "categories": {"total": len(categories_preview), "new": cat_new_count, "existing": cat_existing_count},
-            "shops": {"total": len(shops_preview), "new": shop_new_count, "existing": shop_existing_count},
-            "products": {"total": len(products_preview), "new": prod_new_count, "existing": prod_existing_count},
-        },
-        "preview_items": {
-            "categories": categories_preview[:10],
-            "shops": shops_preview[:10],
-            "products": products_preview[:10],
+        "status": "valid",
+        "total_records": len(raw_categories) + len(raw_shops) + len(raw_products),
+        "breakdown": {
+            "categories": {"total": len(raw_categories), "new": categories_new, "existing": categories_match},
+            "shops": {"total": len(raw_shops), "new": shops_new, "existing": shops_match},
+            "products": {"total": len(raw_products), "new": products_new, "existing": products_match},
         }
     }
 
-@router.post("/import-json")
+@router.post("/execute-import")
 async def execute_mobile_import(
     file: UploadFile = File(...),
-    update_existing: bool = True,
+    update_existing: bool = Body(False),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -262,14 +252,14 @@ async def execute_mobile_import(
                 norm = _normalize_category_item(rc)
                 if not norm["name"]:
                     continue
-                cat = db.query(Category).filter(Category.name.ilike(norm["name"])).first()
+                cat = db.query(Category).filter(Category.name.ilike(norm["name"]), Category.user_id == current_user.id).first()
                 if cat:
                     if update_existing:
                         if norm.get("description"):
                             cat.description = norm["description"]
                         categories_updated += 1
                 else:
-                    new_cat = Category(**norm)
+                    new_cat = Category(**norm, user_id=current_user.id)
                     db.add(new_cat)
                     categories_added += 1
 
@@ -283,9 +273,9 @@ async def execute_mobile_import(
                     continue
                 shop = None
                 if norm.get("phone"):
-                    shop = db.query(Shop).filter(Shop.phone == norm["phone"]).first()
+                    shop = db.query(Shop).filter(Shop.phone == norm["phone"], Shop.user_id == current_user.id).first()
                 if not shop:
-                    shop = db.query(Shop).filter(Shop.name.ilike(norm["name"])).first()
+                    shop = db.query(Shop).filter(Shop.name.ilike(norm["name"]), Shop.user_id == current_user.id).first()
 
                 if shop:
                     if update_existing:
@@ -294,7 +284,7 @@ async def execute_mobile_import(
                                 setattr(shop, k, v)
                         shops_updated += 1
                 else:
-                    new_shop = Shop(**norm)
+                    new_shop = Shop(**norm, user_id=current_user.id)
                     db.add(new_shop)
                     shops_added += 1
 
@@ -309,22 +299,21 @@ async def execute_mobile_import(
 
                 prod = None
                 if norm.get("sku"):
-                    prod = db.query(Product).filter(Product.sku == norm["sku"]).first()
+                    prod = db.query(Product).filter(Product.sku == norm["sku"], Product.user_id == current_user.id).first()
                 if not prod and norm.get("barcode"):
-                    prod = db.query(Product).filter(Product.barcode == norm["barcode"]).first()
+                    prod = db.query(Product).filter(Product.barcode == norm["barcode"], Product.user_id == current_user.id).first()
                 if not prod:
-                    prod = db.query(Product).filter(Product.name.ilike(norm["name"])).first()
+                    prod = db.query(Product).filter(Product.name.ilike(norm["name"]), Product.user_id == current_user.id).first()
 
                 # Ensure category exists
                 if norm.get("category"):
-                    c_exists = db.query(Category).filter(Category.name.ilike(norm["category"])).first()
+                    c_exists = db.query(Category).filter(Category.name.ilike(norm["category"]), Category.user_id == current_user.id).first()
                     if not c_exists:
-                        db.add(Category(name=norm["category"], description="Auto-created during import"))
+                        db.add(Category(name=norm["category"], description="Auto-created during import", user_id=current_user.id))
                         db.flush()
 
                 if prod:
                     if update_existing:
-                        # Update metadata and price; preserve existing stock unless new stock is positive and current is 0
                         for k, v in norm.items():
                             if k == "stock_qty":
                                 if prod.stock_qty == 0 and v > 0:
@@ -334,10 +323,9 @@ async def execute_mobile_import(
                         products_updated += 1
                 else:
                     if not norm.get("sku"):
-                        # Auto-generate a unique SKU
-                        p_count = db.query(Product).count() + 1
+                        p_count = db.query(Product).filter(Product.user_id == current_user.id).count() + 1
                         norm["sku"] = f"SKU-IMP-{p_count:04d}"
-                    new_prod = Product(**norm)
+                    new_prod = Product(**norm, user_id=current_user.id)
                     db.add(new_prod)
                     products_added += 1
 

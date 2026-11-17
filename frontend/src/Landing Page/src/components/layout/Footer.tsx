@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Logo } from "@/components/common/Logo";
 
 export function Footer() {
   return (
@@ -7,11 +8,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-space-xl pb-space-xl">
           <div className="lg:col-span-2 flex flex-col gap-space-md">
             <Link to="/" className="flex items-center gap-space-sm group w-fit">
-              <img
-                src="/logo.svg"
-                alt="MyBilling Logo"
-                className="h-8 w-auto object-contain"
-              />
+              <Logo className="h-8 w-auto object-contain" />
               <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight group-hover:text-primary transition-colors font-bold">
                 MyBilling
               </span>
@@ -37,7 +34,7 @@ export function Footer() {
                 <a href="#app-preview">Interactive Preview</a>
               </li>
               <li className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors">
-                <Link to="/pricing">Pricing</Link>
+                <Link to="/pricing" target="_blank" rel="noopener noreferrer">Pricing</Link>
               </li>
               <li className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors">
                 <a href="#">Integrations</a>

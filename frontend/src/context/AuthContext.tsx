@@ -1,0 +1,119 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { apiClient, setAuthToken, setOnUnauthorized } from "../services/api/apiClient";
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  business_name: string;
+  role: "user" | "master_admin";
+  is_active: boolean;
+}
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (payload: {
+    fullName: string;
+    businessName: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+  }) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const logout = useCallback(async () => {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      setAuthToken(null);
+      setUser(null);
+    }
+  }, []);
+
+  const restoreSession = useCallback(async () => {
+    try {
+      // Attempt silent refresh using HttpOnly cookie with in-flight deduplication
+      const refreshRes = await apiClient.refreshSession();
+      if (refreshRes && refreshRes.access_token) {
+        setAuthToken(refreshRes.access_token);
+        setUser(refreshRes.user);
+      }
+    } catch {
+      // No valid session cookie found; user remains unauthenticated
+      setAuthToken(null);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      setAuthToken(null);
+      setUser(null);
+    });
+    restoreSession();
+  }, [restoreSession]);
+
+  const login = async (email: string, password: string) => {
+    const res = await apiClient.post<{ access_token: string; user: User }>("/auth/login", {
+      email,
+      password,
+    });
+    setAuthToken(res.access_token);
+    setUser(res.user);
+  };
+
+  const signup = async (payload: {
+    fullName: string;
+    businessName: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+  }) => {
+    const res = await apiClient.post<{ access_token: string; user: User }>("/auth/signup", {
+      full_name: payload.fullName,
+      business_name: payload.businessName,
+      email: payload.email,
+      password: payload.password,
+      confirm_password: payload.confirmPassword,
+    });
+    setAuthToken(res.access_token);
+    setUser(res.user);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        signup,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

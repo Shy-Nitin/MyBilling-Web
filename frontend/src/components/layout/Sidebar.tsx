@@ -10,8 +10,11 @@ import {
   Settings,
   Warehouse,
   ChevronDown,
+  LogOut,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { Logo } from "@/components/common/Logo";
+import { useAuth } from "@/context/AuthContext";
 
 interface NavItem {
   id: string;
@@ -22,7 +25,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", path: "/", icon: LayoutDashboard },
+  { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { id: "billing", label: "Billing & Invoices", path: "/billing", icon: ReceiptText, badge: "Let's Cook" },
   { id: "products", label: "Products & Inventory", path: "/inventory", icon: Package },
   { id: "shops", label: "Shops & Udhar", path: "/shops", icon: Store },
@@ -45,21 +48,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   playfulMode = true,
   onTogglePlayfulMode,
 }) => {
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    onNavigate("/");
+  };
+
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-r border-slate-200/70 z-50 flex flex-col justify-between select-none">
       <div className="flex flex-col">
         {/* Brand Header */}
         <div className="h-16 px-space-lg flex items-center justify-between border-b border-slate-100">
-          <div className="flex items-center gap-space-sm cursor-pointer" onClick={() => onNavigate("/")}>
-            <div className="w-8 h-8 rounded-lg bg-primary-container text-white flex items-center justify-center font-bold text-base shadow-sm">
-              MB
-            </div>
+          <div className="flex items-center gap-space-sm cursor-pointer" onClick={() => onNavigate("/dashboard")}>
+            <Logo className="w-8 h-8 rounded-lg shadow-sm" />
             <span className="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">
               MyBilling
             </span>
           </div>
           <span className="px-space-xs py-space-2xs bg-secondary-container text-on-secondary-fixed font-label-badge text-[10px] font-semibold rounded uppercase tracking-wider">
-            Pro ERP
+            {user?.role === "master_admin" ? "Master Admin" : "Pro ERP"}
           </span>
         </div>
 
@@ -141,19 +149,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant" />
         </div>
 
-        {/* User Card */}
-        <div className="flex items-center gap-space-sm pt-space-xs px-space-xs">
-          <div className="w-8 h-8 rounded-full bg-indigo-900 text-white font-bold flex items-center justify-center text-xs shadow-xs">
-            BM
+        {/* User Card & Logout */}
+        <div className="flex items-center justify-between pt-space-xs px-space-xs">
+          <div className="flex items-center gap-space-sm overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-indigo-900 text-white font-bold flex items-center justify-center text-xs shadow-xs shrink-0">
+              {user?.full_name ? user.full_name.charAt(0).toUpperCase() : "M"}
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-body-sm text-body-sm font-semibold text-on-surface truncate">
+                {user?.business_name || user?.full_name || "Merchant"}
+              </span>
+              <span className="font-label-code text-[10px] text-secondary truncate">
+                {user?.email || "Account"}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col overflow-hidden">
-            <span className="font-body-sm text-body-sm font-semibold text-on-surface truncate">
-              Boss Mode
-            </span>
-            <span className="font-label-code text-[10px] text-secondary truncate">
-              SuperAdmin #01
-            </span>
-          </div>
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            className="p-1.5 rounded text-secondary hover:text-error hover:bg-error-container/20 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </aside>

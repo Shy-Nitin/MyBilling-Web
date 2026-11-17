@@ -9,8 +9,10 @@ from backend.app.models.ledger import LedgerEntry
 from backend.app.models.settings import SystemSettings
 from backend.app.models.route import Route
 from backend.app.models.category import Category
+from backend.app.db.migrate_multitenant import migrate_multitenant
 
 def init_database():
+    migrate_multitenant()
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 

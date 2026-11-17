@@ -7,7 +7,8 @@ class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    po_number = Column(String(50), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, default=1, index=True)
+    po_number = Column(String(50), index=True, nullable=False)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
     vendor_invoice_no = Column(String(100), nullable=True)
     order_date = Column(DateTime, default=datetime.utcnow)

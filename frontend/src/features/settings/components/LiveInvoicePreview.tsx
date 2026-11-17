@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { SystemSettings } from "../../../types";
 import { QrCode, Barcode, Smartphone, ScrollText, FileText } from "lucide-react";
 import { UpiQrCode } from "../../../components/common/UpiQrCode";
+import { Logo } from "@/components/common/Logo";
 
 interface LiveInvoicePreviewProps {
   settings: SystemSettings;
@@ -81,9 +82,7 @@ export const LiveInvoicePreview: React.FC<LiveInvoicePreviewProps> = ({ settings
           <div>
             {settings.show_logo && (
               <div className="flex items-center gap-1 mb-1">
-                <div className="w-5 h-5 rounded bg-primary-container text-white flex items-center justify-center font-bold text-[10px]">
-                  MB
-                </div>
+                <Logo className="w-5 h-5 rounded object-contain" />
                 <span className="font-bold text-[11px] tracking-tight text-primary">
                   {settings.store_name}
                 </span>

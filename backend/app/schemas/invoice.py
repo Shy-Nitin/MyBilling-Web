@@ -19,11 +19,11 @@ class InvoiceItemResponse(BaseModel):
     quantity: float
     unit: str
     unit_rate: float
-    mrp: float
-    discount_percent: float
-    discount_amount: float
-    tax_rate: float
-    tax_amount: float
+    mrp: Optional[float] = 0.0
+    discount_percent: Optional[float] = 0.0
+    discount_amount: Optional[float] = 0.0
+    tax_rate: float = 0.0
+    tax_amount: Optional[float] = 0.0
     total_amount: float
 
     model_config = ConfigDict(from_attributes=True)

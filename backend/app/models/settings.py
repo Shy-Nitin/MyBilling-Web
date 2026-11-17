@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, Text, ForeignKey
 from backend.app.core.database import Base
 
 class SystemSettings(Base):
     __tablename__ = "system_settings"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, default=1, index=True)
     store_name = Column(String(200), default="MyBilling Wholesale & Retail")
     tagline = Column(String(200), default="Executive Precision ERP")
     branch_name = Column(String(100), default="Wholesale Branch #1")
@@ -38,7 +39,7 @@ class SystemSettings(Base):
     template_80mm_show_qr = Column(Boolean, default=True)
     template_80mm_font_size = Column(Integer, default=9)
 
-    template_a4_header = Column(String(200), default="INVOICE / CASH MEMO")
+    template_a4_header = Column(String(200), default="TAX INVOICE / CASH MEMO")
     template_a4_footer = Column(String(300), default="Thank you for your business! All squared away, Boss.")
     template_a4_show_logo = Column(Boolean, default=True)
     template_a4_show_qr = Column(Boolean, default=True)

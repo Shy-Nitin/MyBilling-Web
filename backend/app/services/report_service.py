@@ -14,7 +14,13 @@ from backend.app.schemas.report import (
     InvoiceProfitItemSummary,
 )
 
-def get_dashboard_metrics(db: Session, date_range: str = "today") -> DashboardMetrics:
+def _get_item_cost(item: InvoiceItem) -> float:
+    return getattr(item, "landed_cost", None) or getattr(item, "unit_cost", 0.0) or 0.0
+
+def _get_item_disc(item: InvoiceItem) -> float:
+    return getattr(item, "discount_amount", 0.0) or 0.0
+
+def get_dashboard_metrics(db: Session, date_range: str = "today", user_id: int = 1) -> DashboardMetrics:
     now = datetime.utcnow()
     rng = (date_range or "today").lower()
 
@@ -32,23 +38,28 @@ def get_dashboard_metrics(db: Session, date_range: str = "today") -> DashboardMe
         prev_end = period_start
 
     # Invoices in current period
-    current_invoices = db.query(Invoice).filter(Invoice.created_at >= period_start).all()
+    current_invoices = db.query(Invoice).filter(
+        Invoice.created_at >= period_start,
+        Invoice.user_id == user_id
+    ).all()
     gross_revenue = sum(inv.total_amount for inv in current_invoices)
     
-    # Calculate COGS for current period invoices to determine real net profit
     curr_invoice_ids = [inv.id for inv in current_invoices]
     curr_items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id.in_(curr_invoice_ids)).all() if curr_invoice_ids else []
     
-    # Profit formula: (unit_rate - unit_cost) * quantity - discount_amount
-    net_profit = sum((item.unit_rate - item.unit_cost) * item.quantity - item.discount_amount for item in curr_items)
+    net_profit = sum((item.unit_rate - _get_item_cost(item)) * item.quantity - _get_item_disc(item) for item in curr_items)
     net_profit = max(0.0, net_profit)
 
-    # Invoices in previous period for comparative growth %
-    prev_invoices = db.query(Invoice).filter(Invoice.created_at >= prev_start, Invoice.created_at < prev_end).all()
+    # Invoices in previous period
+    prev_invoices = db.query(Invoice).filter(
+        Invoice.created_at >= prev_start,
+        Invoice.created_at < prev_end,
+        Invoice.user_id == user_id
+    ).all()
     prev_revenue = sum(inv.total_amount for inv in prev_invoices)
     prev_ids = [inv.id for inv in prev_invoices]
     prev_items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id.in_(prev_ids)).all() if prev_ids else []
-    prev_profit = max(0.0, sum((item.unit_rate - item.unit_cost) * item.quantity - item.discount_amount for item in prev_items))
+    prev_profit = max(0.0, sum((item.unit_rate - _get_item_cost(item)) * item.quantity - _get_item_disc(item) for item in prev_items))
 
     def _calc_change(curr: float, prev: float) -> float:
         if prev > 0:
@@ -59,11 +70,11 @@ def get_dashboard_metrics(db: Session, date_range: str = "today") -> DashboardMe
     profit_change = _calc_change(net_profit, prev_profit)
     velocity_change = _calc_change(float(len(current_invoices)), float(len(prev_invoices)))
 
-    # Outstanding Udhar
-    unsettled_udhar = db.query(func.sum(Shop.current_balance)).scalar() or 0.0
-    unsettled_udhar_count = db.query(Shop).filter(Shop.current_balance > 0).count()
+    # Outstanding Udhar for user
+    unsettled_udhar = db.query(func.sum(Shop.current_balance)).filter(Shop.user_id == user_id).scalar() or 0.0
+    unsettled_udhar_count = db.query(Shop).filter(Shop.current_balance > 0, Shop.user_id == user_id).count()
 
-    # Calculate actual sales pulse for period
+    # Sales pulse
     pulse_slots = []
     if rng == "today":
         time_slots = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"]
@@ -114,9 +125,8 @@ def get_dashboard_metrics(db: Session, date_range: str = "today") -> DashboardMe
                 )
             )
 
-    # Invoices list for table
     recent_invoices = []
-    recent_db_invoices = db.query(Invoice).order_by(Invoice.created_at.desc()).limit(10).all()
+    recent_db_invoices = db.query(Invoice).filter(Invoice.user_id == user_id).order_by(Invoice.created_at.desc()).limit(10).all()
     for inv in recent_db_invoices:
         recent_invoices.append({
             "id": inv.id,
@@ -142,8 +152,7 @@ def get_dashboard_metrics(db: Session, date_range: str = "today") -> DashboardMe
         recent_invoices=recent_invoices
     )
 
-def get_profit_analytics_series(db: Session) -> list[ProfitAnalyticsPoint]:
-    # Group by last 7 days dynamically
+def get_profit_analytics_series(db: Session, user_id: int = 1) -> list[ProfitAnalyticsPoint]:
     today = datetime.utcnow().date()
     points = []
     for i in range(6, -1, -1):
@@ -151,13 +160,17 @@ def get_profit_analytics_series(db: Session) -> list[ProfitAnalyticsPoint]:
         day_start = datetime.combine(target_date, datetime.min.time())
         day_end = datetime.combine(target_date, datetime.max.time())
         
-        day_invoices = db.query(Invoice).filter(Invoice.created_at >= day_start, Invoice.created_at <= day_end).all()
+        day_invoices = db.query(Invoice).filter(
+            Invoice.created_at >= day_start,
+            Invoice.created_at <= day_end,
+            Invoice.user_id == user_id
+        ).all()
         gross_revenue = sum(inv.total_amount for inv in day_invoices)
         
         day_inv_ids = [inv.id for inv in day_invoices]
         day_items = db.query(InvoiceItem).filter(InvoiceItem.invoice_id.in_(day_inv_ids)).all() if day_inv_ids else []
         
-        net_profit = sum((item.unit_rate - item.unit_cost) * item.quantity - item.discount_amount for item in day_items)
+        net_profit = sum((item.unit_rate - _get_item_cost(item)) * item.quantity - _get_item_disc(item) for item in day_items)
         net_profit = max(0.0, net_profit)
         
         margin_percent = round((net_profit / gross_revenue * 100), 1) if gross_revenue > 0 else 0.0
@@ -173,8 +186,7 @@ def get_profit_analytics_series(db: Session) -> list[ProfitAnalyticsPoint]:
         )
     return points
 
-def get_category_margins(db: Session) -> list[CategoryMargin]:
-    # Aggregate actual invoice items by product category
+def get_category_margins(db: Session, user_id: int = 1) -> list[CategoryMargin]:
     categories = [
         "Staples & Grains",
         "Edible Oils",
@@ -185,11 +197,19 @@ def get_category_margins(db: Session) -> list[CategoryMargin]:
     
     results = []
     for cat in categories:
-        items = db.query(InvoiceItem).join(Product, InvoiceItem.product_id == Product.id).filter(Product.category == cat).all()
+        items = db.query(InvoiceItem).join(
+            Invoice, InvoiceItem.invoice_id == Invoice.id
+        ).join(
+            Product, InvoiceItem.product_id == Product.id
+        ).filter(
+            Product.category == cat,
+            Invoice.user_id == user_id
+        ).all()
+
         items_sold = sum(i.quantity for i in items)
         revenue = sum(i.total_amount for i in items)
-        cogs = sum(i.unit_cost * i.quantity for i in items)
-        gross_profit = sum((i.unit_rate - i.unit_cost) * i.quantity - i.discount_amount for i in items)
+        cogs = sum(_get_item_cost(i) * i.quantity for i in items)
+        gross_profit = sum((i.unit_rate - _get_item_cost(i)) * i.quantity - _get_item_disc(i) for i in items)
         gross_profit = max(0.0, gross_profit)
         margin = round((gross_profit / revenue * 100), 1) if revenue > 0 else 0.0
         
@@ -210,9 +230,10 @@ def get_invoice_profit_summaries(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     shop_id: Optional[int] = None,
-    product_id: Optional[int] = None
+    product_id: Optional[int] = None,
+    user_id: int = 1
 ) -> List[InvoiceProfitSummary]:
-    query = db.query(Invoice)
+    query = db.query(Invoice).filter(Invoice.user_id == user_id)
     if start_date:
         query = query.filter(Invoice.created_at >= start_date)
     if end_date:
@@ -235,9 +256,11 @@ def get_invoice_profit_summaries(
         inv_profit = 0.0
 
         for it in items:
-            unit_profit = it.unit_rate - it.unit_cost
-            item_profit = (unit_profit * it.quantity) - it.discount_amount
-            item_cost = it.unit_cost * it.quantity
+            c = _get_item_cost(it)
+            d = _get_item_disc(it)
+            unit_profit = it.unit_rate - c
+            item_profit = (unit_profit * it.quantity) - d
+            item_cost = c * it.quantity
             
             inv_cost += item_cost
             inv_profit += item_profit
@@ -250,10 +273,10 @@ def get_invoice_profit_summaries(
                     pack_size=it.pack_size or "1 unit",
                     quantity=it.quantity,
                     unit=it.unit,
-                    unit_cost=round(it.unit_cost, 2),
+                    unit_cost=round(c, 2),
                     unit_rate=round(it.unit_rate, 2),
                     unit_profit=round(unit_profit, 2),
-                    discount_amount=round(it.discount_amount, 2),
+                    discount_amount=round(d, 2),
                     total_profit=round(item_profit, 2)
                 )
             )

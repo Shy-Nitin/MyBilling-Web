@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "../components/layout/AppLayout";
 import { DashboardPage } from "../features/dashboard/pages/DashboardPage";
 import { BillingPage } from "../features/billing/pages/BillingPage";
@@ -8,33 +9,23 @@ import { PurchasesPage } from "../features/purchases/pages/PurchasesPage";
 import { LedgerPage } from "../features/ledger/pages/LedgerPage";
 import { ReportsPage } from "../features/reports/pages/ReportsPage";
 import { SettingsPage } from "../features/settings/pages/SettingsPage";
+import { HomePage } from "../Landing Page/src/pages/HomePage";
+import { PricingPage } from "../Landing Page/src/pages/PricingPage";
+import { LoginPage } from "../Landing Page/src/pages/LoginPage";
+import { SignupPage } from "../Landing Page/src/pages/SignupPage";
+import { useAuth } from "../context/AuthContext";
+import { Logo } from "../components/common/Logo";
 
-export const AppRouter: React.FC = () => {
-  const [currentPath, setCurrentPath] = useState<string>(
-    window.location.pathname || "/"
-  );
+interface ProtectedRouteProps {
+  children: (navigate: (path: string) => void) => React.ReactNode;
+}
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname || "/");
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const navigate = (path: string) => {
-    if (path !== currentPath) {
-      window.history.pushState({}, "", path);
-      setCurrentPath(path);
-      window.scrollTo(0, 0);
-    }
-  };
-
-  const handleQuickAction = () => {
-    navigate("/billing");
-  };
-
-  // Keyboard shortcut listener: F9 to jump to billing
+  // F9 hotkey to jump straight to billing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "F9") {
@@ -44,40 +35,149 @@ export const AppRouter: React.FC = () => {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [navigate]);
 
-  const renderPage = () => {
-    const basePath = currentPath.split("?")[0];
-    switch (basePath) {
-      case "/":
-        return <DashboardPage onNavigate={navigate} />;
-      case "/billing":
-        return <BillingPage onNavigate={navigate} />;
-      case "/inventory":
-      case "/products":
-        return <ProductsPage />;
-      case "/shops":
-        return <ShopsPage />;
-      case "/purchases":
-        return <PurchasesPage />;
-      case "/ledger":
-        return <LedgerPage />;
-      case "/reports":
-        return <ReportsPage />;
-      case "/settings":
-        return <SettingsPage />;
-      default:
-        return <DashboardPage onNavigate={navigate} />;
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-4">
+        <Logo className="w-16 h-16 animate-pulse" />
+        <div className="flex items-center gap-2 text-primary font-medium text-sm">
+          <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Restoring secure session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
 
   return (
     <AppLayout
-      currentPath={currentPath}
-      onNavigate={navigate}
-      onQuickAction={handleQuickAction}
+      currentPath={location.pathname}
+      onNavigate={(path) => navigate(path)}
+      onQuickAction={() => navigate("/billing")}
     >
-      {renderPage()}
+      {children(navigate)}
     </AppLayout>
+  );
+};
+
+export const AppRouter: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  return (
+    <Routes>
+      {/* Public Pages */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route
+        path="/login"
+        element={
+          !isLoading && isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LoginPage />
+          )
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          !isLoading && isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <SignupPage />
+          )
+        }
+      />
+
+      {/* Protected ERP Workspace */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            {(navigate) => <DashboardPage onNavigate={navigate} />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            {(navigate) => <BillingPage onNavigate={navigate} />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory"
+        element={
+          <ProtectedRoute>
+            {() => <ProductsPage />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <ProtectedRoute>
+            {() => <ProductsPage />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/shops"
+        element={
+          <ProtectedRoute>
+            {() => <ShopsPage />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/purchases"
+        element={
+          <ProtectedRoute>
+            {() => <PurchasesPage />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ledger"
+        element={
+          <ProtectedRoute>
+            {() => <LedgerPage />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            {() => <ReportsPage />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            {() => <SettingsPage />}
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Catch-all Fallback */}
+      <Route
+        path="*"
+        element={
+          !isLoading && isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+    </Routes>
   );
 };

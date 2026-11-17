@@ -6,16 +6,24 @@ from backend.app.core.database import get_db
 from backend.app.schemas.report import ProfitAnalyticsPoint, CategoryMargin, TaxSummary, InvoiceProfitSummary
 from backend.app.services.report_service import get_profit_analytics_series, get_category_margins, get_invoice_profit_summaries
 from backend.app.models.invoice import Invoice
+from backend.app.models.user import User
+from backend.app.api.deps import get_current_user
 
 router = APIRouter()
 
 @router.get("/profit-trends", response_model=List[ProfitAnalyticsPoint])
-def profit_trends(db: Session = Depends(get_db)):
-    return get_profit_analytics_series(db)
+def profit_trends(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return get_profit_analytics_series(db, user_id=current_user.id)
 
 @router.get("/category-margins", response_model=List[CategoryMargin])
-def category_margins(db: Session = Depends(get_db)):
-    return get_category_margins(db)
+def category_margins(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return get_category_margins(db, user_id=current_user.id)
 
 @router.get("/profit-breakdown", response_model=List[InvoiceProfitSummary])
 def profit_breakdown(
@@ -23,15 +31,26 @@ def profit_breakdown(
     end_date: Optional[str] = None,
     shop_id: Optional[int] = None,
     product_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     s_date = datetime.fromisoformat(start_date) if start_date else None
     e_date = datetime.fromisoformat(end_date) if end_date else None
-    return get_invoice_profit_summaries(db, start_date=s_date, end_date=e_date, shop_id=shop_id, product_id=product_id)
+    return get_invoice_profit_summaries(
+        db,
+        start_date=s_date,
+        end_date=e_date,
+        shop_id=shop_id,
+        product_id=product_id,
+        user_id=current_user.id
+    )
 
 @router.get("/tax-summary", response_model=TaxSummary)
-def tax_summary(db: Session = Depends(get_db)):
-    invoices = db.query(Invoice).all()
+def tax_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    invoices = db.query(Invoice).filter(Invoice.user_id == current_user.id).all()
     total_tax = sum(inv.tax_amount for inv in invoices)
     total_taxable = sum(inv.subtotal - inv.discount_amount for inv in invoices)
     

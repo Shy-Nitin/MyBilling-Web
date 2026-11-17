@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from backend.app.core.database import engine
+from backend.app.models.user import User
+from backend.app.api.deps import get_current_admin
 
 router = APIRouter()
 
@@ -19,173 +21,131 @@ def _ensure_backup_dir():
 class BackupInfo(BaseModel):
     filename: str
     size_bytes: int
-    size_kb: float
+    size_formatted: str
     created_at: str
-    is_auto_snapshot: bool = False
+    timestamp: float
+
+def _format_size(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    else:
+        return f"{size_bytes / (1024 * 1024):.2f} MB"
 
 def _verify_sqlite_db(path: str) -> bool:
     try:
-        with open(path, "rb") as f:
-            header = f.read(16)
-            if not header.startswith(b"SQLite format 3\x00"):
-                return False
         conn = sqlite3.connect(path)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA quick_check")
-        res = cursor.fetchone()
+        cur = conn.cursor()
+        cur.execute("PRAGMA integrity_check;")
+        res = cur.fetchone()
         conn.close()
         return res is not None and res[0] == "ok"
     except Exception:
         return False
 
 @router.get("/list", response_model=List[BackupInfo])
-def list_backups():
+def list_backups(admin: User = Depends(get_current_admin)):
+    """Master Admin: List available system database snapshot files."""
     _ensure_backup_dir()
-    files = []
-    for fname in os.listdir(BACKUP_DIR):
-        if fname.endswith(".db"):
-            fpath = os.path.join(BACKUP_DIR, fname)
-            stat = os.stat(fpath)
-            dt_str = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-            files.append(
-                BackupInfo(
-                    filename=fname,
-                    size_bytes=stat.st_size,
-                    size_kb=round(stat.st_size / 1024.0, 1),
-                    created_at=dt_str,
-                    is_auto_snapshot="snapshot" in fname.lower()
-                )
-            )
-    files.sort(key=lambda x: x.created_at, reverse=True)
-    return files
+    backups = []
+    for f in os.listdir(BACKUP_DIR):
+        if f.endswith(".db"):
+            fp = os.path.join(BACKUP_DIR, f)
+            stat = os.stat(fp)
+            backups.append(BackupInfo(
+                filename=f,
+                size_bytes=stat.st_size,
+                size_formatted=_format_size(stat.st_size),
+                created_at=datetime.fromtimestamp(stat.st_mtime).strftime("%d-%b-%Y %I:%M %p"),
+                timestamp=stat.st_mtime
+            ))
+    backups.sort(key=lambda b: b.timestamp, reverse=True)
+    return backups
 
 @router.post("/create", response_model=BackupInfo)
-def create_backup():
+def create_backup(admin: User = Depends(get_current_admin)):
+    """Master Admin: Trigger an atomic SQLite snapshot."""
     _ensure_backup_dir()
     if not os.path.exists(DB_PATH):
-        raise HTTPException(status_code=404, detail="Active database file not found.")
+        raise HTTPException(status_code=404, detail="Primary database file not found on disk.")
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    backup_filename = f"maya-billing-backup-{timestamp}.db"
+    timestamp_str = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    backup_filename = f"mybilling-backup-{timestamp_str}.db"
     backup_path = os.path.join(BACKUP_DIR, backup_filename)
 
-    # Use SQLite online backup API to ensure 100% consistent live snapshot
     try:
         src = sqlite3.connect(DB_PATH)
         dst = sqlite3.connect(backup_path)
         with dst:
-            src.backup(dst)
+            src.backup(dst, pages=100)
         dst.close()
         src.close()
     except Exception as e:
-        shutil.copy2(DB_PATH, backup_path)
+        raise HTTPException(status_code=500, detail=f"Backup process failed: {str(e)}")
+
+    if not _verify_sqlite_db(backup_path):
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+        raise HTTPException(status_code=500, detail="Backup file corrupted or failed SQLite integrity check.")
 
     stat = os.stat(backup_path)
     return BackupInfo(
         filename=backup_filename,
         size_bytes=stat.st_size,
-        size_kb=round(stat.st_size / 1024.0, 1),
-        created_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-        is_auto_snapshot=False
+        size_formatted=_format_size(stat.st_size),
+        created_at=datetime.fromtimestamp(stat.st_mtime).strftime("%d-%b-%Y %I:%M %p"),
+        timestamp=stat.st_mtime
     )
 
-@router.get("/download/{filename}")
-def download_backup(filename: str):
+@router.post("/restore")
+def restore_backup(filename: str, admin: User = Depends(get_current_admin)):
+    """Master Admin: Safely restore a historical database snapshot."""
     _ensure_backup_dir()
-    safe_filename = os.path.basename(filename)
-    file_path = os.path.join(BACKUP_DIR, safe_filename)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Backup file not found.")
+    backup_path = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(backup_path):
+        raise HTTPException(status_code=404, detail=f"Backup snapshot '{filename}' not found.")
+
+    if not _verify_sqlite_db(backup_path):
+        raise HTTPException(status_code=400, detail="Selected backup failed SQLite integrity check. Cannot restore.")
+
+    pre_restore_ts = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    safety_copy = os.path.join(BACKUP_DIR, f"pre-restore-safety-{pre_restore_ts}.db")
+    if os.path.exists(DB_PATH):
+        shutil.copy2(DB_PATH, safety_copy)
+
+    try:
+        shutil.copy2(backup_path, DB_PATH)
+    except Exception as e:
+        if os.path.exists(safety_copy):
+            shutil.copy2(safety_copy, DB_PATH)
+        raise HTTPException(status_code=500, detail=f"Restore operation failed: {str(e)}")
+
+    return {
+        "success": True,
+        "message": f"Successfully restored system from snapshot '{filename}'. Previous active state saved as safety backup.",
+        "safety_backup": os.path.basename(safety_copy)
+    }
+
+@router.get("/download/{filename}")
+def download_backup(filename: str, admin: User = Depends(get_current_admin)):
+    """Master Admin: Download a snapshot database file."""
+    _ensure_backup_dir()
+    backup_path = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(backup_path):
+        raise HTTPException(status_code=404, detail=f"Backup file '{filename}' not found.")
     return FileResponse(
-        path=file_path,
-        filename=safe_filename,
+        path=backup_path,
+        filename=filename,
         media_type="application/x-sqlite3"
     )
 
 @router.delete("/{filename}")
-def delete_backup(filename: str):
+def delete_backup(filename: str, admin: User = Depends(get_current_admin)):
+    """Master Admin: Remove an old backup snapshot file."""
     _ensure_backup_dir()
-    safe_filename = os.path.basename(filename)
-    file_path = os.path.join(BACKUP_DIR, safe_filename)
-    if not os.path.exists(file_path):
+    backup_path = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(backup_path):
         raise HTTPException(status_code=404, detail="Backup file not found.")
-    try:
-        os.remove(file_path)
-        return {"success": True, "message": f"Backup {safe_filename} removed."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete backup: {str(e)}")
-
-@router.post("/restore")
-async def restore_backup(
-    filename: Optional[str] = Query(None, description="Filename from existing backups list"),
-    file: Optional[UploadFile] = File(None)
-):
-    _ensure_backup_dir()
-    temp_restore_path = None
-
-    if file:
-        temp_restore_path = os.path.join(BACKUP_DIR, f"temp-upload-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.db")
-        try:
-            content = await file.read()
-            with open(temp_restore_path, "wb") as f:
-                f.write(content)
-            source_path = temp_restore_path
-        except Exception as e:
-            if temp_restore_path and os.path.exists(temp_restore_path):
-                os.remove(temp_restore_path)
-            raise HTTPException(status_code=400, detail=f"Failed to process uploaded file: {str(e)}")
-    elif filename:
-        safe_filename = os.path.basename(filename)
-        source_path = os.path.join(BACKUP_DIR, safe_filename)
-        if not os.path.exists(source_path):
-            raise HTTPException(status_code=404, detail="Specified backup file not found.")
-    else:
-        raise HTTPException(status_code=400, detail="Provide either a backup filename or upload a .db file.")
-
-    # 1. Validate SQLite database integrity before touching live database
-    if not _verify_sqlite_db(source_path):
-        if temp_restore_path and os.path.exists(temp_restore_path):
-            os.remove(temp_restore_path)
-        raise HTTPException(status_code=400, detail="Corrupt or invalid SQLite database file. Restore aborted.")
-
-    # 2. Create pre-restore safety snapshot of current database
-    snapshot_filename = f"pre-restore-snapshot-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.db"
-    snapshot_path = os.path.join(BACKUP_DIR, snapshot_filename)
-    if os.path.exists(DB_PATH):
-        try:
-            shutil.copy2(DB_PATH, snapshot_path)
-        except Exception as e:
-            if temp_restore_path and os.path.exists(temp_restore_path):
-                os.remove(temp_restore_path)
-            raise HTTPException(status_code=500, detail=f"Safety snapshot failed: {str(e)}")
-
-    # 3. Dispose active SQLAlchemy connections
-    engine.dispose()
-
-    # 4. Atomic copy / replace
-    try:
-        shutil.copy2(source_path, DB_PATH)
-        # Reconnect test
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = [r[0] for r in cursor.fetchall()]
-        conn.close()
-    except Exception as e:
-        # Rollback from safety snapshot!
-        if os.path.exists(snapshot_path):
-            shutil.copy2(snapshot_path, DB_PATH)
-        if temp_restore_path and os.path.exists(temp_restore_path):
-            os.remove(temp_restore_path)
-        raise HTTPException(status_code=500, detail=f"Database restore failed. Rolled back to safety snapshot. Error: {str(e)}")
-
-    # Cleanup temp upload file
-    if temp_restore_path and os.path.exists(temp_restore_path):
-        os.remove(temp_restore_path)
-
-    return {
-        "success": True,
-        "message": "Database restored successfully. All tables and data reloaded.",
-        "tables_restored": len(tables),
-        "safety_snapshot": snapshot_filename
-    }
+    os.remove(backup_path)
+    return {"success": True, "message": f"Snapshot '{filename}' deleted."}

@@ -1,3 +1,5 @@
+from backend.app.models.user import User
+from backend.app.models.session import UserSession
 from backend.app.models.product import Product
 from backend.app.models.shop import Shop
 from backend.app.models.supplier import Supplier
@@ -9,6 +11,8 @@ from backend.app.models.route import Route
 from backend.app.models.category import Category
 
 __all__ = [
+    "User",
+    "UserSession",
     "Product",
     "Shop",
     "Supplier",

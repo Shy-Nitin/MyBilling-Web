@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey
 from datetime import datetime
 from backend.app.core.database import Base
 
@@ -6,7 +6,8 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
-    sku = Column(String(50), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, default=1, index=True)
+    sku = Column(String(50), index=True, nullable=False)
     barcode = Column(String(50), index=True, nullable=True)
     name = Column(String(200), nullable=False)
     brand = Column(String(100), nullable=True)

@@ -7,9 +7,11 @@ from typing import List, Optional, Dict
 from backend.app.core.database import get_db
 from backend.app.models.invoice import Invoice
 from backend.app.models.settings import SystemSettings
+from backend.app.models.user import User
 from backend.app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse
 from backend.app.services.billing_service import create_sale_invoice, update_sale_invoice, delete_sale_invoice
 from backend.app.services.pdf_service import generate_invoice_pdf, generate_profit_report_pdf
+from backend.app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -28,6 +30,7 @@ def _cleanup_idempotency_cache():
 def create_invoice(
     invoice_in: InvoiceCreate,
     x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     key = x_idempotency_key or invoice_in.idempotency_key
@@ -36,11 +39,14 @@ def create_invoice(
             _cleanup_idempotency_cache()
             if key in _idempotency_cache:
                 _, existing_inv_id = _idempotency_cache[key]
-                existing_invoice = db.query(Invoice).filter(Invoice.id == existing_inv_id).first()
+                existing_invoice = db.query(Invoice).filter(
+                    Invoice.id == existing_inv_id,
+                    Invoice.user_id == current_user.id
+                ).first()
                 if existing_invoice:
                     return existing_invoice
 
-    invoice = create_sale_invoice(db, invoice_in)
+    invoice = create_sale_invoice(db, invoice_in, user_id=current_user.id)
 
     if key:
         with _cache_lock:
@@ -52,17 +58,19 @@ def create_invoice(
 def update_invoice(
     invoice_id: int,
     invoice_update: InvoiceUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    updated_invoice = update_sale_invoice(db, invoice_id, invoice_update)
+    updated_invoice = update_sale_invoice(db, invoice_id, invoice_update, user_id=current_user.id)
     return updated_invoice
 
 @router.delete("/invoices/{invoice_id}")
 def delete_invoice(
     invoice_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    result = delete_sale_invoice(db, invoice_id)
+    result = delete_sale_invoice(db, invoice_id, user_id=current_user.id)
     return result
 
 @router.get("/invoices", response_model=List[InvoiceResponse])
@@ -74,9 +82,10 @@ def get_invoices(
     date_preset: Optional[str] = Query("all", description="today, yesterday, 7d, 30d, this_month, custom, all"),
     start_date: Optional[str] = Query(None, description="YYYY-MM-DD for custom range"),
     end_date: Optional[str] = Query(None, description="YYYY-MM-DD for custom range"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    query = db.query(Invoice)
+    query = db.query(Invoice).filter(Invoice.user_id == current_user.id)
     if shop_id:
         query = query.filter(Invoice.shop_id == shop_id)
 
@@ -131,8 +140,15 @@ def get_invoices(
     return query.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
 
 @router.get("/invoices/{invoice_id}", response_model=InvoiceResponse)
-def get_invoice_by_id(invoice_id: int, db: Session = Depends(get_db)):
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+def get_invoice_by_id(
+    invoice_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    invoice = db.query(Invoice).filter(
+        Invoice.id == invoice_id,
+        Invoice.user_id == current_user.id
+    ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found.")
     return invoice
@@ -141,15 +157,19 @@ def get_invoice_by_id(invoice_id: int, db: Session = Depends(get_db)):
 def download_invoice_pdf(
     invoice_id: int,
     format: str = Query("a4", pattern="^(a4|80mm|50mm)$"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = db.query(Invoice).filter(
+        Invoice.id == invoice_id,
+        Invoice.user_id == current_user.id
+    ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found.")
     
-    settings = db.query(SystemSettings).first()
+    settings = db.query(SystemSettings).filter(SystemSettings.user_id == current_user.id).first()
     if not settings:
-        settings = SystemSettings()
+        settings = SystemSettings(user_id=current_user.id)
 
     pdf_bytes = generate_invoice_pdf(invoice, settings, format_name=format)
     return Response(
@@ -164,15 +184,19 @@ def download_invoice_pdf(
 def download_invoice_profit_pdf(
     invoice_id: int,
     format: str = Query("a4", pattern="^(a4|80mm|50mm)$"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = db.query(Invoice).filter(
+        Invoice.id == invoice_id,
+        Invoice.user_id == current_user.id
+    ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found.")
     
-    settings = db.query(SystemSettings).first()
+    settings = db.query(SystemSettings).filter(SystemSettings.user_id == current_user.id).first()
     if not settings:
-        settings = SystemSettings()
+        settings = SystemSettings(user_id=current_user.id)
 
     pdf_bytes = generate_profit_report_pdf(invoice, settings, format_name=format)
     return Response(

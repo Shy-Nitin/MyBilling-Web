@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Logo } from "@/components/common/Logo";
+import { useAuth } from "@/context/AuthContext";
 
 export function SignupPage() {
   const [fullName, setFullName] = useState("");
@@ -14,6 +16,13 @@ export function SignupPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { signup, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   // Password strength calculation
   const strength = useMemo(() => {
@@ -29,7 +38,7 @@ export function SignupPage() {
     return { text: "Weak", score: 1 };
   }, [password]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !businessName.trim() || !workEmail.trim() || !password) {
       setErrorMsg("Please fill in all required fields.");
@@ -39,6 +48,10 @@ export function SignupPage() {
       setErrorMsg("Passwords do not match.");
       return;
     }
+    if (password.length < 8) {
+      setErrorMsg("Password must be at least 8 characters long.");
+      return;
+    }
     if (!termsAccepted) {
       setErrorMsg("Please accept the terms to proceed.");
       return;
@@ -46,10 +59,20 @@ export function SignupPage() {
 
     setErrorMsg("");
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      await signup({
+        fullName,
+        businessName,
+        email: workEmail,
+        password,
+        confirmPassword,
+      });
+      navigate("/dashboard");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to register account.");
+    } finally {
       setIsSubmitting(false);
-      navigate("/");
-    }, 1200);
+    }
   };
 
   return (
@@ -67,11 +90,7 @@ export function SignupPage() {
               <div className="relative z-10 flex flex-col gap-6">
                 <Link to="/" className="flex items-center gap-3 w-fit">
                   <div className="w-12 h-12 rounded-xl bg-surface-card/10 backdrop-blur-md p-1.5 shadow-sm flex items-center justify-center">
-                    <img
-                      src="/logo.svg"
-                      alt="MyBilling Logo"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
+                    <Logo className="w-full h-full object-contain rounded-lg" />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-headline-sm text-headline-sm tracking-tight text-on-primary font-bold">

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { SmartChatbot } from "../components/bot/SmartChatbot";
+import { Logo } from "@/components/common/Logo";
+import { SOCIAL_LINKS } from "@/config/socialLinks";
 
 export function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
@@ -38,11 +40,7 @@ export function PricingPage() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
-              </svg>
-            </div>
+            <Logo className="w-8 h-8 rounded-lg shadow-lg shadow-indigo-500/20" />
             <span className="text-white font-bold tracking-tight text-lg">MyBilling</span>
           </Link>
 
@@ -399,7 +397,7 @@ export function PricingPage() {
           <p className="text-xs text-zinc-600 font-normal">&copy; 2025 MyBilling Inc. All rights reserved.</p>
           <div className="flex items-center gap-3">
             <a
-              href="https://instagram.com"
+              href={SOCIAL_LINKS.instagram}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
@@ -412,7 +410,7 @@ export function PricingPage() {
               </svg>
             </a>
             <a
-              href="https://linkedin.com"
+              href={SOCIAL_LINKS.linkedin}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="LinkedIn"
@@ -425,7 +423,7 @@ export function PricingPage() {
               </svg>
             </a>
             <a
-              href="mailto:hello@mybilling.com"
+              href={SOCIAL_LINKS.mailTo}
               aria-label="Email"
               className="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.04] hover:bg-white/10 border border-white/[0.06] hover:border-white/20 text-zinc-400 hover:text-white transition-all duration-200"
             >

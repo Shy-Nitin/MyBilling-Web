@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Logo } from "@/components/common/Logo";
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -37,11 +38,7 @@ export function Navbar() {
       <div className="h-16 max-w-7xl mx-auto px-margin flex items-center justify-between gap-space-md">
         <div className="flex items-center gap-space-lg">
           <Link to="/" className="flex items-center gap-space-sm group">
-            <img
-              src="/logo.svg"
-              alt="MyBilling Logo"
-              className="h-8 w-auto object-contain"
-            />
+            <Logo className="h-8 w-auto object-contain" />
             <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight group-hover:text-primary transition-colors font-bold">
               MyBilling
             </span>
@@ -65,6 +62,8 @@ export function Navbar() {
             })}
             <Link
               to="/pricing"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-primary via-secondary to-accent-violet-light border border-white/20 hover:shadow-lg hover:shadow-primary/40 transition-all shadow-md group hover:scale-105 active:scale-95"
             >
               <svg className="w-3.5 h-3.5 text-white group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 20 20">
@@ -131,6 +130,8 @@ export function Navbar() {
             ))}
             <Link
               to="/pricing"
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={() => setMobileMenuOpen(false)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all shadow-sm group hover:scale-105 active:scale-95"
             >

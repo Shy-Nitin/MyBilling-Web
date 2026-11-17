@@ -1,14 +1,14 @@
 # MyBilling Setup & Installation Guide
 
-This document provides step-by-step instructions to configure, run, and verify MyBilling on any machine.
+This document provides step-by-step instructions to configure, run, and verify MyBilling on any machine with complete authentication and multi-tenant isolation.
 
 ---
 
 ## 1. Prerequisites
 
-- **Node.js**: v18+ (verified on v24)
-- **Python**: v3.10+ (verified on v3.14)
-- **PostgreSQL** (optional; SQLite works out-of-the-box for development and verification)
+- **Node.js**: v18+ (tested & verified on v24)
+- **Python**: v3.10+ (tested & verified on v3.14)
+- **SQLite 3**: Embedded (default zero-configuration) or **PostgreSQL 14+**
 
 ---
 
@@ -17,42 +17,44 @@ This document provides step-by-step instructions to configure, run, and verify M
 ### A. Environment & Dependencies
 
 From the repository root:
-```bash
+```powershell
+# Create/activate virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# Install requirements
 pip install -r backend/requirements.txt
 ```
 
-### B. Configure Database (PostgreSQL or SQLite)
+Key packages installed:
+- `fastapi`, `uvicorn`: High-performance ASGI framework
+- `sqlalchemy`: 2.0 ORM with relational integrity
+- `bcrypt`: Multi-round password hashing
+- `pyjwt`: Cryptographic JSON Web Token encoding/decoding
+- `reportlab`: Native PDF generation engine
 
-- **Default (SQLite zero-configuration):**
-  The backend automatically defaults to `sqlite:///./mybilling.db`.
-  The database is automatically created and seeded with realistic ERP inventory, registered shops, suppliers, and transaction records on first startup.
+### B. Database Initialization & Multi-Tenant Migration
 
-- **For PostgreSQL:**
-  Set the `DATABASE_URL` environment variable:
-  ```bash
-  # Windows PowerShell:
-  $env:DATABASE_URL="postgresql+psycopg2://postgres:password@localhost:5432/mybilling"
+The backend automatically executes multi-tenant schema migrations on startup, adding `user_id` foreign keys to existing tables and seeding the initial Master Admin and Demo accounts.
 
-  # Linux/macOS:
-  export DATABASE_URL="postgresql+psycopg2://postgres:password@localhost:5432/mybilling"
-  ```
-
-### C. Run Database Migrations (Optional)
-
-```bash
-# Run Alembic migrations
-alembic -c backend/alembic.ini upgrade head
+If you ever need to manually provision or reset a Master Admin:
+```powershell
+python -m backend.app.db.provision_admin --name "Nitin Parashar" --email "admin@mybilling.com" --password "AdminPassword@123"
 ```
 
-### D. Start Backend API Server
+To configure PostgreSQL instead of SQLite:
+```powershell
+$env:DATABASE_URL="postgresql+psycopg2://postgres:password@localhost:5432/mybilling"
+```
 
-From the repository root:
-```bash
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+### C. Start Backend API Server
+
+```powershell
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 - API Base URL: `http://localhost:8000/api/v1`
-- Swagger / OpenAPI Docs: `http://localhost:8000/docs`
+- Interactive OpenAPI Docs: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/health`
 
 ---
@@ -61,32 +63,50 @@ python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ### A. Install Dependencies
 
-```bash
+```powershell
 cd frontend
 npm install
 ```
 
+Key packages:
+- `react`, `react-dom` (v19)
+- `react-router-dom` (v7 unified route tree)
+- `tailwindcss`, `lucide-react`, `recharts`, `framer-motion`
+- `@phosphor-icons/react`
+
 ### B. Start Development Server
 
-```bash
+```powershell
 npm run dev
 ```
 
 - Local Dev URL: `http://localhost:5173`
-- The frontend proxies / connects directly to the backend at `http://localhost:8000/api/v1`.
+- Default Route (`/`): Landing Page
+- Pricing Page (`/pricing`): Pricing details & developer links
+- Auth Pages (`/login`, `/signup`): Authentication
+- Protected Workspace (`/dashboard`, `/billing`, `/inventory`, etc.)
 
-### C. Production Build Verification
+### C. Verify Production Build
 
-```bash
+```powershell
 npm run build
-npm run preview
 ```
+Generates optimized static assets in `frontend/dist/`.
 
 ---
 
-## 4. Key Keyboard Hotkeys
+## 4. Default Seed Accounts
 
-- `F9`: Jump to POS Terminal / Finalize Active Bill
+| Account Type | Email | Password | Role | Description |
+|---|---|---|---|---|
+| **Master Admin** | `admin@mybilling.com` | `AdminPassword@123` | `master_admin` | Access to system-wide backup export & restore |
+| **Demo Merchant** | `demo@mybilling.com` | `DemoPassword@123` | `user` | Standard merchant workspace with sample FMCG inventory |
+
+---
+
+## 5. Key POS Keyboard Hotkeys
+
+- `F9`: Jump directly to POS Terminal / Finalize Active Bill
 - `F1`: Quick Focus Barcode Scanner / SKU Search
 - `F2`: Add New Product to Master Catalog / Switch to Cash Mode
 - `F4`: Split Payment Mode

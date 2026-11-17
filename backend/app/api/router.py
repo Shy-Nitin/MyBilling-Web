@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 from backend.app.api.v1 import (
+    auth,
+    admin,
     dashboard,
     billing,
     products,
@@ -16,6 +18,8 @@ from backend.app.api.v1 import (
 
 api_router = APIRouter()
 
+api_router.include_router(auth.router, prefix="/auth", tags=["Authentication & Sessions"])
+api_router.include_router(admin.router, prefix="/admin", tags=["Master Admin Operations"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(billing.router, prefix="/billing", tags=["Billing & Invoices"])
 api_router.include_router(products.router, prefix="/products", tags=["Products & Inventory"])

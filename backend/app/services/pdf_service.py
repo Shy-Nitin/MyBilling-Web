@@ -349,13 +349,14 @@ def generate_invoice_pdf(invoice: Invoice, settings: SystemSettings, format_name
 
         for idx, item in enumerate(invoice.items, start=1):
             item_title = f"<b>{item.product_name}</b><br/><font color='#565e74' size='7'>{item.sku}</font>"
+            item_disc = getattr(item, "discount_amount", 0.0) or 0.0
             table_data.append([
                 Paragraph(str(idx), cell_regular),
                 Paragraph(item_title, cell_regular),
                 Paragraph(item.pack_size or "1 unit", cell_regular),
                 Paragraph(f"{item.quantity:.1f} {item.unit}", cell_regular),
                 Paragraph(f"{item.unit_rate:.2f}", cell_regular),
-                Paragraph(f"{item.discount_amount:.2f}", cell_regular),
+                Paragraph(f"{item_disc:.2f}", cell_regular),
                 Paragraph(f"{item.total_amount:.2f}", cell_bold),
             ])
 
@@ -534,12 +535,12 @@ def generate_profit_report_pdf(invoice: Invoice, settings: SystemSettings, forma
     total_net_profit = 0.0
 
     for idx, item in enumerate(invoice.items, start=1):
-        unit_cost = item.unit_cost
-        unit_rate = item.unit_rate
+        unit_cost = getattr(item, "landed_cost", getattr(item, "unit_cost", 0.0)) or 0.0
+        unit_rate = getattr(item, "unit_rate", 0.0) or 0.0
         unit_profit = unit_rate - unit_cost
         item_revenue = unit_rate * item.quantity
         item_cost = unit_cost * item.quantity
-        item_disc = item.discount_amount
+        item_disc = getattr(item, "discount_amount", 0.0) or 0.0
         item_net_profit = (unit_profit * item.quantity) - item_disc
 
         total_cogs += item_cost
