@@ -103,14 +103,8 @@ npm run dev
 
 ---
 
-## 🔑 Default Accounts (Development / Demo)
-
-| Account Type | Email | Password | Role | Description |
-|---|---|---|---|---|
-| **Master Admin** | `admin@mybilling.com` | `AdminPassword@123` | `master_admin` | Full system backup & cross-tenant administrative access |
-| **Merchant Demo** | `demo@mybilling.com` | `DemoPassword@123` | `user` | Standard isolated business workspace |
-
 To provision a new Master Admin via CLI:
+
 ```bash
 python -m backend.app.db.provision_admin --name "Admin Name" --email "admin@example.com" --password "SecurePass@123"
 ```
