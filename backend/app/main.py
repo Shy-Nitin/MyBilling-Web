@@ -1,4 +1,19 @@
+import sys
 import os
+import types
+
+# Ensure 'backend' package exists in sys.modules so internal absolute imports work
+# regardless of whether Python was started from the repo root or inside backend/ (e.g. Vercel)
+if "backend" not in sys.modules:
+    try:
+        import backend
+    except ImportError:
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        backend_pkg = types.ModuleType("backend")
+        backend_pkg.__path__ = [backend_dir]
+        backend_pkg.__file__ = os.path.join(backend_dir, "__init__.py")
+        sys.modules["backend"] = backend_pkg
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
