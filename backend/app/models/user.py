@@ -13,6 +13,7 @@ class User(Base):
     business_name = Column(String(200), nullable=False)
     role = Column(String(50), default="user", nullable=False) # "user", "master_admin"
     is_active = Column(Boolean, default=True, nullable=False)
+    supabase_uid = Column(String(64), unique=True, index=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -1,3 +1,14 @@
+import sys
+from pathlib import Path
+
+# Add project root and backend dir to sys.path
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+_BACKEND_DIR = _BASE_DIR / "backend"
+if str(_BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(_BASE_DIR))
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
 import sqlite3
 from sqlalchemy import text
 from backend.app.core.database import engine, Base, SessionLocal
@@ -39,6 +50,13 @@ def migrate_multitenant():
                 if "user_id" not in col_names:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id INTEGER DEFAULT 1"))
                     conn.commit()
+            
+            # Ensure users table has supabase_uid column
+            user_cols = conn.execute(text("PRAGMA table_info('users')")).fetchall()
+            user_col_names = [c[1] for c in user_cols]
+            if "supabase_uid" not in user_col_names:
+                conn.execute(text("ALTER TABLE users ADD COLUMN supabase_uid VARCHAR(64)"))
+                conn.commit()
     
     # 3. Seed default Master Admin and standard user if table is empty
     db = SessionLocal()

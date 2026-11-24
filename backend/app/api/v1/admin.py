@@ -48,6 +48,30 @@ def toggle_user_status(
     db.commit()
     return {"message": f"User status successfully updated to {'Active' if is_active else 'Disabled'}.", "user_id": user_id, "is_active": user.is_active}
 
+@router.get("/users/{user_id}")
+def get_user_workspace_info(
+    user_id: int,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin-only: Retrieve user profile and workspace summary metrics."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    product_count = db.query(Product).filter(Product.user_id == user.id).count()
+    invoice_count = db.query(Invoice).filter(Invoice.user_id == user.id).count()
+    shop_count = db.query(Shop).filter(Shop.user_id == user.id).count()
+
+    return {
+        "user": UserResponse.model_validate(user),
+        "metrics": {
+            "products": product_count,
+            "invoices": invoice_count,
+            "shops": shop_count
+        }
+    }
+
 @router.get("/backup/export-system")
 def export_system_backup(
     admin: User = Depends(get_current_admin),

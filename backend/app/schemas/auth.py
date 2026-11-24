@@ -22,6 +22,7 @@ class UserResponse(BaseModel):
     business_name: str
     role: str
     is_active: bool
+    supabase_uid: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

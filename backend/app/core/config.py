@@ -7,11 +7,17 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Primary database URL: defaults to SQLite for immediate out-of-the-box local execution,
-    # and can be overridden by DATABASE_URL environment variable for PostgreSQL.
+    # and can be overridden by DATABASE_URL environment variable for PostgreSQL / Supabase.
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
         "sqlite:///./mybilling.db"
     )
+    
+    # Supabase configuration (optional / production)
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL", None)
+    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY", None)
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY", None)
+    SUPABASE_JWT_SECRET: Optional[str] = os.getenv("SUPABASE_JWT_SECRET", None)
     
     # Server configs
     BACKEND_CORS_ORIGINS: list[str] = [

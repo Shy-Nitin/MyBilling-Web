@@ -1,6 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== "undefined" ? "/api/v1" : "http://127.0.0.1:8000/api/v1");
 
 let inMemoryAccessToken: string | null = null;
+let activeTenantUserId: number | null = null;
 let onUnauthorizedCallback: (() => void) | null = null;
 let refreshPromise: Promise<{ access_token: string; user?: any }> | null = null;
 
@@ -9,6 +10,12 @@ export const setAuthToken = (token: string | null) => {
 };
 
 export const getAuthToken = () => inMemoryAccessToken;
+
+export const setActiveTenantUserId = (userId: number | null) => {
+  activeTenantUserId = userId;
+};
+
+export const getActiveTenantUserId = () => activeTenantUserId;
 
 export const setOnUnauthorized = (cb: () => void) => {
   onUnauthorizedCallback = cb;
@@ -50,6 +57,9 @@ class ApiClient {
     };
     if (inMemoryAccessToken) {
       headers["Authorization"] = `Bearer ${inMemoryAccessToken}`;
+    }
+    if (activeTenantUserId) {
+      headers["X-Active-User-Id"] = String(activeTenantUserId);
     }
     return headers;
   }

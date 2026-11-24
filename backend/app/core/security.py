@@ -45,15 +45,35 @@ def create_access_token(subject: Any, role: str, email: str, expires_delta: Opti
     return encoded_jwt
 
 def decode_access_token(token: str) -> Optional[dict]:
-    """Decode and validate a JWT access token."""
+    """Decode and validate a JWT access token (application token or Supabase Auth JWT)."""
+    # 1. Try application JWT secret
     try:
         payload = jwt.decode(
             token,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM]
         )
-        if payload.get("type") != "access":
-            return None
-        return payload
-    except (jwt.PyJWTError, Exception):
-        return None
+        if payload.get("type") == "access":
+            return payload
+    except Exception:
+        pass
+
+    # 2. Try Supabase JWT Secret if configured
+    if settings.SUPABASE_JWT_SECRET:
+        try:
+            payload = jwt.decode(
+                token,
+                settings.SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                options={"verify_aud": False}
+            )
+            return {
+                "sub": payload.get("sub"),
+                "email": payload.get("email"),
+                "supabase": True,
+                "type": "access"
+            }
+        except Exception:
+            pass
+
+    return None

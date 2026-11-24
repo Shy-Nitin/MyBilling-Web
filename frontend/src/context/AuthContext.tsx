@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiClient, setAuthToken, setOnUnauthorized } from "../services/api/apiClient";
+import { apiClient, setAuthToken, setOnUnauthorized, setActiveTenantUserId } from "../services/api/apiClient";
 
 export interface User {
   id: number;
@@ -8,12 +8,16 @@ export interface User {
   business_name: string;
   role: "user" | "master_admin";
   is_active: boolean;
+  supabase_uid?: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  activeWorkspace: User | null;
+  isSwitchedWorkspace: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
+  switchWorkspace: (targetUser: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (payload: {
     fullName: string;
@@ -29,7 +33,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [activeWorkspace, setActiveWorkspace] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const switchWorkspace = useCallback((targetUser: User | null) => {
+    if (!targetUser || targetUser.id === user?.id) {
+      setActiveTenantUserId(null);
+      setActiveWorkspace(null);
+    } else if (user?.role === "master_admin") {
+      setActiveTenantUserId(targetUser.id);
+      setActiveWorkspace(targetUser);
+    }
+  }, [user]);
 
   const logout = useCallback(async () => {
     try {
@@ -37,6 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Ignore network errors on logout
     } finally {
+      setActiveTenantUserId(null);
+      setActiveWorkspace(null);
       setAuthToken(null);
       setUser(null);
     }
@@ -98,8 +115,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
+        activeWorkspace,
+        isSwitchedWorkspace: !!activeWorkspace && activeWorkspace.id !== user?.id,
         isAuthenticated: !!user,
         isLoading,
+        switchWorkspace,
         login,
         signup,
         logout,

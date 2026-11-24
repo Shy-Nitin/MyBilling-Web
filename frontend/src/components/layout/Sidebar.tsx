@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   LayoutDashboard,
   ReceiptText,
@@ -11,10 +11,12 @@ import {
   Warehouse,
   ChevronDown,
   LogOut,
+  Users,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Logo } from "@/components/common/Logo";
 import { useAuth } from "@/context/AuthContext";
+import { MerchantAccountsModal } from "@/components/common/MerchantAccountsModal";
 
 interface NavItem {
   id: string;
@@ -49,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTogglePlayfulMode,
 }) => {
   const { user, logout } = useAuth();
+  const [isAccountsModalOpen, setIsAccountsModalOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -111,6 +114,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             );
           })}
+
+          {/* Master Admin Portal Trigger */}
+          {user?.role === "master_admin" && (
+            <div className="pt-2 mt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsAccountsModalOpen(true)}
+                className="flex items-center justify-between w-full px-space-md py-space-sm rounded transition-all text-left text-body-md font-body-md text-purple-700 bg-purple-50/70 hover:bg-purple-100/70 border border-purple-200/60 shadow-xs"
+              >
+                <div className="flex items-center gap-space-md">
+                  <Users className="w-[18px] h-[18px] text-purple-600 shrink-0" />
+                  <span className="font-semibold text-xs">Merchant Workspaces</span>
+                </div>
+                <span className="font-label-badge text-[9px] px-1.5 py-0.5 rounded font-bold bg-purple-200 text-purple-800">
+                  ADMIN
+                </span>
+              </button>
+            </div>
+          )}
         </nav>
       </div>
 
@@ -173,6 +195,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </div>
+
+      <MerchantAccountsModal
+        isOpen={isAccountsModalOpen}
+        onClose={() => setIsAccountsModalOpen(false)}
+      />
     </aside>
   );
 };
