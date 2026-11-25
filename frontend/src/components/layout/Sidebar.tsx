@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex flex-col">
         {/* Brand Header */}
         <div className="h-16 px-space-lg flex items-center justify-between border-b border-slate-100">
-          <div className="flex items-center gap-space-sm cursor-pointer" onClick={() => onNavigate("/dashboard")}>
+          <div className="flex items-center gap-space-sm cursor-pointer" title="Go to Landing Page" onClick={() => onNavigate("/")}>
             <Logo className="w-8 h-8 rounded-lg shadow-sm" />
             <span className="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">
               MyBilling

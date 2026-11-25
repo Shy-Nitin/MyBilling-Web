@@ -14,6 +14,21 @@ export interface CartItem {
   discount_percent: number;
   tax_rate: number;
   mrp: number;
+  cases?: number;
+  pieces?: number;
+}
+
+export function getPiecesPerCase(packSize: string): number {
+  if (!packSize) return 1;
+  const match =
+    packSize.match(/(\d+)\s*(?:pcs|pc|units?|case|box|pack|pk)/i) ||
+    packSize.match(/(?:case|box|pack)\s*(?:of)?\s*(\d+)/i) ||
+    packSize.match(/(\d+)/);
+  if (match && match[1]) {
+    const num = parseInt(match[1], 10);
+    return num > 0 ? num : 1;
+  }
+  return 1;
 }
 
 interface BillItemsTableProps {
@@ -21,6 +36,7 @@ interface BillItemsTableProps {
   onUpdateQty: (productId: number, qty: number) => void;
   onUpdateRate: (productId: number, rate: number) => void;
   onUpdateDiscount: (productId: number, disc: number) => void;
+  onUpdateMrp?: (productId: number, mrp: number) => void;
   onRemoveItem: (productId: number) => void;
 }
 
@@ -29,6 +45,7 @@ export const BillItemsTable: React.FC<BillItemsTableProps> = ({
   onUpdateQty,
   onUpdateRate,
   onUpdateDiscount,
+  onUpdateMrp,
   onRemoveItem,
 }) => {
   if (items.length === 0) {
@@ -43,36 +60,58 @@ export const BillItemsTable: React.FC<BillItemsTableProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-200/80 rounded-xl shadow-2xs">
-      <table className="w-full text-left border-collapse">
-        <thead className="sticky top-0 bg-surface-container-low text-secondary font-mono text-[11px] uppercase tracking-wider border-b border-slate-200 z-10">
+    <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-200/80 rounded-xl shadow-2xs">
+      <table className="w-full text-left border-collapse min-w-[540px]">
+        <thead className="sticky top-0 bg-surface-container-low text-secondary font-mono text-[10px] uppercase tracking-wider border-b border-slate-200 z-10">
           <tr>
-            <th className="py-2 px-3 font-medium">Item & Pack</th>
-            <th className="py-2 px-2 font-medium text-center">Qty</th>
-            <th className="py-2 px-2 font-medium text-right">Rate (₹)</th>
-            <th className="py-2 px-2 font-medium text-right">Disc %</th>
-            <th className="py-2 px-3 font-medium text-right">Total</th>
-            <th className="py-2 px-2 font-medium text-center">×</th>
+            <th className="py-2 px-2 text-center w-8">#</th>
+            <th className="py-2 px-3">Description</th>
+            <th className="py-2 px-2 text-center w-24">Total Qty</th>
+            <th className="py-2 px-2 text-right w-20">MRP (₹)</th>
+            <th className="py-2 px-2 text-right w-16">Disc %</th>
+            <th className="py-2 px-3 text-right w-24">Amount (₹)</th>
+            <th className="py-2 px-1 text-center w-7">×</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 font-body-sm text-body-sm bg-white">
-          {items.map((item) => {
-            const subtotal = item.quantity * item.unit_rate;
-            const discount = subtotal * (item.discount_percent / 100);
-            const total = subtotal - discount;
+          {items.map((item, idx) => {
+            const effectiveMrp = item.mrp > 0 ? item.mrp : item.unit_rate;
+            const total = item.quantity * item.unit_rate;
+
+            const handleDiscChange = (disc: number) => {
+              onUpdateDiscount(item.product_id, disc);
+              if (effectiveMrp > 0) {
+                const newRate = Math.round((effectiveMrp * (1 - disc / 100)) * 100) / 100;
+                onUpdateRate(item.product_id, newRate);
+              }
+            };
+
+            const handleMrpChange = (newMrp: number) => {
+              if (onUpdateMrp) onUpdateMrp(item.product_id, newMrp);
+              const disc = item.discount_percent || 0;
+              const newRate = Math.round((newMrp * (1 - disc / 100)) * 100) / 100;
+              onUpdateRate(item.product_id, newRate);
+            };
 
             return (
               <tr key={item.product_id} className="hover:bg-slate-50 transition-colors">
-                <td className="py-2.5 px-3">
+                {/* 1. Sr. No. */}
+                <td className="py-2 px-2 text-center font-mono text-[11px] text-slate-400">
+                  {idx + 1}
+                </td>
+
+                {/* 2. Description */}
+                <td className="py-2 px-3">
                   <div className="font-semibold text-xs text-slate-900 leading-tight">
                     {item.name}
                   </div>
                   <div className="font-mono text-[10px] text-slate-500 mt-0.5">
-                    {item.sku} • {item.pack_size}
+                    {item.sku} • {item.pack_size} <span className="uppercase text-slate-600 font-semibold">({item.unit || "PCS"})</span>
                   </div>
                 </td>
 
-                <td className="py-2.5 px-2 text-center">
+                {/* 3. Total Qty */}
+                <td className="py-2 px-2 text-center">
                   <QuantityStepper
                     value={item.quantity}
                     onChange={(val) => onUpdateQty(item.product_id, val)}
@@ -80,47 +119,53 @@ export const BillItemsTable: React.FC<BillItemsTableProps> = ({
                   />
                 </td>
 
-                <td className="py-2.5 px-2 text-right">
+                {/* 4. MRP */}
+                <td className="py-2 px-2 text-right">
                   <input
                     type="number"
-                    value={item.unit_rate}
+                    step="0.01"
+                    min="0"
+                    value={effectiveMrp}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value);
-                      if (!isNaN(val) && val >= 0) {
-                        onUpdateRate(item.product_id, val);
-                      }
+                      if (!isNaN(val) && val >= 0) handleMrpChange(val);
                     }}
-                    className="w-16 text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-16 text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1 py-0.5 focus:bg-white focus:outline-none text-slate-700"
                   />
                 </td>
 
-                <td className="py-2.5 px-2 text-right">
+                {/* 5. Discount % */}
+                <td className="py-2 px-2 text-right">
                   <input
                     type="number"
                     min="0"
                     max="100"
+                    step="0.01"
                     value={item.discount_percent}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value);
-                      if (!isNaN(val) && val >= 0 && val <= 100) {
-                        onUpdateDiscount(item.product_id, val);
-                      }
+                      if (!isNaN(val) && val >= 0 && val <= 100) handleDiscChange(val);
                     }}
-                    className="w-12 text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-12 text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1 py-0.5 focus:bg-white focus:outline-none font-semibold text-primary"
                   />
                 </td>
 
-                <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
+                {/* 6. Amount */}
+                <td className="py-2 px-3 text-right font-mono font-semibold text-xs text-slate-900">
                   {formatCurrency(total)}
+                  <div className="text-[9px] text-slate-400 font-normal">
+                    @ ₹{item.unit_rate.toFixed(2)}
+                  </div>
                 </td>
 
-                <td className="py-2.5 px-2 text-center">
+                {/* Delete line item */}
+                <td className="py-2 px-1 text-center">
                   <button
                     type="button"
                     onClick={() => onRemoveItem(item.product_id)}
-                    className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-error hover:bg-red-50 transition-colors"
+                    className="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-error hover:bg-red-50 transition-colors"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </button>
                 </td>
               </tr>

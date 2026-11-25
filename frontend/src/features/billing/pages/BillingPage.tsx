@@ -32,6 +32,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [extraDiscount, setExtraDiscount] = useState<number>(0);
   const [paymentMode, setPaymentMode] = useState<"CASH" | "UPI" | "UDHAR_CREDIT" | "SPLIT">("CASH");
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,6 +83,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
         setCustomerPhone(inv.customer_phone || "");
         setPaymentMode(inv.payment_mode as any);
         setPaidAmount(inv.paid_amount || 0);
+        setExtraDiscount(inv.discount_amount || 0);
 
         // Map items to cart
         const cartItems: CartItem[] = inv.items.map((it) => ({
@@ -129,6 +131,12 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
           i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
+      const baseMrp = product.mrp > 0 ? product.mrp : product.wholesale_rate;
+      const initialDisc =
+        baseMrp > 0 && product.wholesale_rate < baseMrp
+          ? Math.round(((baseMrp - product.wholesale_rate) / baseMrp) * 100 * 100) / 100
+          : 0;
+
       return [
         ...prev,
         {
@@ -139,9 +147,9 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
           unit: product.unit || "PCS",
           quantity: 1,
           unit_rate: product.wholesale_rate,
-          discount_percent: 0,
+          discount_percent: initialDisc,
           tax_rate: 0.0,
-          mrp: product.mrp,
+          mrp: baseMrp,
         },
       ];
     });
@@ -155,13 +163,32 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
 
   const handleUpdateRate = (productId: number, rate: number) => {
     setCart((prev) =>
-      prev.map((i) => (i.product_id === productId ? { ...i, unit_rate: rate } : i))
+      prev.map((i) => {
+        if (i.product_id !== productId) return i;
+        const disc = i.mrp > 0 ? Math.max(0, Math.round(((i.mrp - rate) / i.mrp) * 100 * 100) / 100) : i.discount_percent;
+        return { ...i, unit_rate: rate, discount_percent: disc };
+      })
     );
   };
 
   const handleUpdateDiscount = (productId: number, disc: number) => {
     setCart((prev) =>
-      prev.map((i) => (i.product_id === productId ? { ...i, discount_percent: disc } : i))
+      prev.map((i) => {
+        if (i.product_id !== productId) return i;
+        const baseMrp = i.mrp > 0 ? i.mrp : i.unit_rate;
+        const rate = Math.round((baseMrp * (1 - disc / 100)) * 100) / 100;
+        return { ...i, discount_percent: disc, unit_rate: rate };
+      })
+    );
+  };
+
+  const handleUpdateMrp = (productId: number, mrp: number) => {
+    setCart((prev) =>
+      prev.map((i) => {
+        if (i.product_id !== productId) return i;
+        const rate = Math.round((mrp * (1 - (i.discount_percent || 0) / 100)) * 100) / 100;
+        return { ...i, mrp, unit_rate: rate };
+      })
     );
   };
 
@@ -170,13 +197,10 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
   };
 
   // Wholesale Calculations — NO GST
-  const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_rate, 0);
-  const totalDiscount = cart.reduce(
-    (sum, item) => sum + item.quantity * item.unit_rate * (item.discount_percent / 100),
-    0
-  );
-  // Total is simply subtotal minus discount
-  const grandTotal = Math.max(0, Math.round((subtotal - totalDiscount) * 100) / 100);
+  // Subtotal is the sum of discounted item rates * quantities (e.g., ₹63 * 8 = ₹504)
+  const subtotal = Math.round(cart.reduce((sum, item) => sum + item.quantity * item.unit_rate, 0) * 100) / 100;
+  // Grand Total is Subtotal minus manually entered Extra Discount
+  const grandTotal = Math.max(0, Math.round((subtotal - extraDiscount) * 100) / 100);
 
   // Finalize or Update Invoice
   const handleFinalize = async () => {
@@ -199,6 +223,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
             : paymentMode === "UDHAR_CREDIT"
             ? 0
             : paidAmount,
+        extra_discount: extraDiscount,
+        discount_amount: extraDiscount,
         idempotency_key: idempotencyKey,
         items: cart.map((i) => ({
           product_id: i.product_id,
@@ -206,6 +232,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
           unit_rate: i.unit_rate,
           discount_percent: i.discount_percent,
           tax_rate: 0.0,
+          mrp: i.mrp,
         })),
       };
 
@@ -230,6 +257,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
 
   const handleResetForNewBill = () => {
     setCart([]);
+    setExtraDiscount(0);
     setSelectedShopId(null);
     setCustomerName("Counter Walk-in Retail");
     setCustomerPhone("");
@@ -398,6 +426,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
             onUpdateQty={handleUpdateQty}
             onUpdateRate={handleUpdateRate}
             onUpdateDiscount={handleUpdateDiscount}
+            onUpdateMrp={handleUpdateMrp}
             onRemoveItem={handleRemoveItem}
           />
 
@@ -411,7 +440,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({ onNavigate }) => {
           {/* Bill Totals & Finalize */}
           <BillSummary
             subtotal={subtotal}
-            discount={totalDiscount}
+            extraDiscount={extraDiscount}
+            onExtraDiscountChange={setExtraDiscount}
             total={grandTotal}
             paidAmount={paidAmount}
             onPaidAmountChange={setPaidAmount}

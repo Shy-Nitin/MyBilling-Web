@@ -18,6 +18,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   switchWorkspace: (targetUser: User | null) => void;
+  setSession: (accessToken: string, userData: User) => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (payload: {
     fullName: string;
@@ -31,20 +32,44 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const WORKSPACE_STORAGE_KEY = "mybilling_active_workspace";
+
+const readStoredWorkspace = (): User | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [activeWorkspace, setActiveWorkspace] = useState<User | null>(null);
+  const [activeWorkspace, setActiveWorkspace] = useState<User | null>(() => readStoredWorkspace());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const switchWorkspace = useCallback((targetUser: User | null) => {
     if (!targetUser || targetUser.id === user?.id) {
       setActiveTenantUserId(null);
       setActiveWorkspace(null);
+      localStorage.removeItem(WORKSPACE_STORAGE_KEY);
     } else if (user?.role === "master_admin") {
       setActiveTenantUserId(targetUser.id);
       setActiveWorkspace(targetUser);
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(targetUser));
     }
   }, [user]);
+
+  const setSession = useCallback((accessToken: string, userData: User) => {
+    setAuthToken(accessToken);
+    setUser(userData);
+    if (userData.role !== "master_admin") {
+      setActiveTenantUserId(null);
+      setActiveWorkspace(null);
+      localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+    }
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -54,6 +79,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setActiveTenantUserId(null);
       setActiveWorkspace(null);
+      localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+      apiClient.clearCache();
       setAuthToken(null);
       setUser(null);
     }
@@ -66,6 +93,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (refreshRes && refreshRes.access_token) {
         setAuthToken(refreshRes.access_token);
         setUser(refreshRes.user);
+        if (refreshRes.user?.role === "master_admin") {
+          const saved = readStoredWorkspace();
+          if (saved && saved.id !== refreshRes.user.id) {
+            setActiveTenantUserId(saved.id);
+            setActiveWorkspace(saved);
+          } else {
+            setActiveTenantUserId(null);
+            setActiveWorkspace(null);
+            localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+          }
+        } else {
+          setActiveTenantUserId(null);
+          setActiveWorkspace(null);
+          localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+        }
       }
     } catch {
       // No valid session cookie found; user remains unauthenticated
@@ -89,8 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
-    setAuthToken(res.access_token);
-    setUser(res.user);
+    setSession(res.access_token, res.user);
   };
 
   const signup = async (payload: {
@@ -107,8 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password: payload.password,
       confirm_password: payload.confirmPassword,
     });
-    setAuthToken(res.access_token);
-    setUser(res.user);
+    setSession(res.access_token, res.user);
   };
 
   return (
@@ -120,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         isLoading,
         switchWorkspace,
+        setSession,
         login,
         signup,
         logout,

@@ -19,6 +19,8 @@ interface GrnRow {
   quantity: number;
   unit_cost: number;
   tax_rate: number;
+  mrp?: number;
+  discount_percent?: number;
 }
 
 export const NewGrnModal: React.FC<NewGrnModalProps> = ({
@@ -35,14 +37,22 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [items, setItems] = useState<GrnRow[]>([
-    {
-      product_id: products[0]?.id || 1,
+  const initRow = (prodId?: number): GrnRow => {
+    const prod = products.find((p) => p.id === prodId) || products[0];
+    const initialMrp = prod?.mrp || prod?.wholesale_rate || 0;
+    const initialCost = prod?.landed_cost || 0;
+    const initialDisc = initialMrp > 0 ? Math.max(0, Math.round(((initialMrp - initialCost) / initialMrp) * 100 * 100) / 100) : 0;
+    return {
+      product_id: prod?.id || 1,
       quantity: 10,
-      unit_cost: products[0]?.landed_cost || 1000,
+      mrp: initialMrp,
+      discount_percent: initialDisc,
+      unit_cost: initialCost,
       tax_rate: 0,
-    },
-  ]);
+    };
+  };
+
+  const [items, setItems] = useState<GrnRow[]>([initRow()]);
 
   useEffect(() => {
     if (editPurchase) {
@@ -52,12 +62,19 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
       setNotes(editPurchase.notes || "");
       if (editPurchase.items && editPurchase.items.length > 0) {
         setItems(
-          editPurchase.items.map((it) => ({
-            product_id: it.product_id,
-            quantity: it.quantity,
-            unit_cost: it.unit_cost,
-            tax_rate: it.tax_rate || 0,
-          }))
+          editPurchase.items.map((it) => {
+            const prod = products.find((p) => p.id === it.product_id);
+            const m = prod?.mrp || prod?.wholesale_rate || it.unit_cost;
+            const d = m > 0 ? Math.max(0, Math.round(((m - it.unit_cost) / m) * 100 * 100) / 100) : 0;
+            return {
+              product_id: it.product_id,
+              quantity: it.quantity,
+              mrp: m,
+              discount_percent: d,
+              unit_cost: it.unit_cost,
+              tax_rate: it.tax_rate || 0,
+            };
+          })
         );
       }
     } else {
@@ -66,28 +83,13 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
       setPaidAmount(0);
       setNotes("");
       if (products.length > 0) {
-        setItems([
-          {
-            product_id: products[0].id,
-            quantity: 10,
-            unit_cost: products[0].landed_cost || 1000,
-            tax_rate: 0,
-          },
-        ]);
+        setItems([initRow(products[0].id)]);
       }
     }
   }, [editPurchase, isOpen, suppliers, products]);
 
   const handleAddItem = () => {
-    setItems((prev) => [
-      ...prev,
-      {
-        product_id: products[0]?.id || 1,
-        quantity: 10,
-        unit_cost: products[0]?.landed_cost || 1000,
-        tax_rate: 5,
-      },
-    ]);
+    setItems((prev) => [...prev, initRow(products[0]?.id)]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -99,11 +101,29 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
   const handleUpdateItem = (index: number, field: keyof GrnRow, val: number) => {
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: val };
+      const row = { ...next[index], [field]: val };
+
       if (field === "product_id") {
         const prod = products.find((p) => p.id === val);
-        if (prod) next[index].unit_cost = prod.landed_cost;
+        if (prod) {
+          row.mrp = prod.mrp || prod.wholesale_rate || 0;
+          row.unit_cost = prod.landed_cost;
+          row.discount_percent = row.mrp > 0 ? Math.max(0, Math.round(((row.mrp - prod.landed_cost) / row.mrp) * 100 * 100) / 100) : 0;
+        }
+      } else if (field === "mrp") {
+        const disc = row.discount_percent || 0;
+        row.unit_cost = Math.round((val * (1 - disc / 100)) * 100) / 100;
+      } else if (field === "discount_percent") {
+        const baseMrp = row.mrp || row.unit_cost;
+        row.unit_cost = Math.round((baseMrp * (1 - val / 100)) * 100) / 100;
+      } else if (field === "unit_cost") {
+        const baseMrp = row.mrp || 0;
+        if (baseMrp > 0) {
+          row.discount_percent = Math.max(0, Math.round(((baseMrp - val) / baseMrp) * 100 * 100) / 100);
+        }
       }
+
+      next[index] = row;
       return next;
     });
   };
@@ -185,10 +205,12 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
             <thead>
               <tr className="bg-surface-container-low text-secondary font-mono text-[11px] uppercase tracking-wider border-b border-slate-200">
                 <th className="py-2.5 px-3">Product Item</th>
-                <th className="py-2.5 px-2 text-center w-24">Inward Qty</th>
-                <th className="py-2.5 px-2 text-right w-28">Unit Cost (₹)</th>
-                <th className="py-2.5 px-2 text-right w-20">Tax %</th>
-                <th className="py-2.5 px-3 text-right w-28">Total (₹)</th>
+                <th className="py-2.5 px-1 text-center w-16">Inward Qty</th>
+                <th className="py-2.5 px-1 text-right w-20">MRP (₹)</th>
+                <th className="py-2.5 px-1 text-right w-16">Disc %</th>
+                <th className="py-2.5 px-1 text-right w-24">Landed Cost</th>
+                <th className="py-2.5 px-1 text-right w-16">Tax %</th>
+                <th className="py-2.5 px-3 text-right w-24">Total (₹)</th>
                 <th className="py-2.5 px-2 text-center w-8"></th>
               </tr>
             </thead>
@@ -213,7 +235,7 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
                       </select>
                     </td>
 
-                    <td className="py-2 px-2 text-center">
+                    <td className="py-2 px-1 text-center">
                       <input
                         type="number"
                         min="1"
@@ -225,7 +247,35 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
                       />
                     </td>
 
-                    <td className="py-2 px-2 text-right">
+                    <td className="py-2 px-1 text-right">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={row.mrp ?? 0}
+                        onChange={(e) =>
+                          handleUpdateItem(idx, "mrp", parseFloat(e.target.value) || 0)
+                        }
+                        placeholder="MRP"
+                        className="w-full text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-1 focus:bg-white focus:outline-none text-slate-800"
+                      />
+                    </td>
+
+                    <td className="py-2 px-1 text-right">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={row.discount_percent ?? 0}
+                        onChange={(e) =>
+                          handleUpdateItem(idx, "discount_percent", parseFloat(e.target.value) || 0)
+                        }
+                        placeholder="Disc %"
+                        className="w-full text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1 py-1 focus:bg-white focus:outline-none font-semibold text-primary"
+                      />
+                    </td>
+
+                    <td className="py-2 px-1 text-right">
                       <input
                         type="number"
                         step="0.01"
@@ -233,11 +283,11 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
                         onChange={(e) =>
                           handleUpdateItem(idx, "unit_cost", parseFloat(e.target.value) || 0)
                         }
-                        className="w-full text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-1 focus:bg-white focus:outline-none"
+                        className="w-full text-right font-mono text-xs bg-slate-50 border border-indigo-200 rounded px-1.5 py-1 focus:bg-white focus:outline-none font-bold text-slate-900"
                       />
                     </td>
 
-                    <td className="py-2 px-2 text-right">
+                    <td className="py-2 px-1 text-right">
                       <input
                         type="number"
                         step="0.1"
@@ -245,7 +295,7 @@ export const NewGrnModal: React.FC<NewGrnModalProps> = ({
                         onChange={(e) =>
                           handleUpdateItem(idx, "tax_rate", parseFloat(e.target.value) || 0)
                         }
-                        className="w-full text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-1 focus:bg-white focus:outline-none"
+                        className="w-full text-right font-mono text-xs bg-slate-50 border border-slate-200 rounded px-1 py-1 focus:bg-white focus:outline-none"
                       />
                     </td>
 

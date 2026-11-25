@@ -1,9 +1,22 @@
 const BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== "undefined" ? "/api/v1" : "http://127.0.0.1:8000/api/v1");
 
 let inMemoryAccessToken: string | null = null;
-let activeTenantUserId: number | null = null;
+let activeTenantUserId: number | null = (() => {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem("mybilling_active_tenant_user_id");
+  return stored ? parseInt(stored, 10) : null;
+})();
 let onUnauthorizedCallback: (() => void) | null = null;
 let refreshPromise: Promise<{ access_token: string; user?: any }> | null = null;
+
+// Lightweight in-memory GET cache with 30s TTL + in-flight deduplication
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+const getCache = new Map<string, CacheEntry<any>>();
+const inFlightRequests = new Map<string, Promise<any>>();
+const CACHE_TTL_MS = 30_000; // 30 seconds
 
 export const setAuthToken = (token: string | null) => {
   inMemoryAccessToken = token;
@@ -13,6 +26,15 @@ export const getAuthToken = () => inMemoryAccessToken;
 
 export const setActiveTenantUserId = (userId: number | null) => {
   activeTenantUserId = userId;
+  if (typeof window !== "undefined") {
+    if (userId) {
+      localStorage.setItem("mybilling_active_tenant_user_id", String(userId));
+    } else {
+      localStorage.removeItem("mybilling_active_tenant_user_id");
+    }
+  }
+  getCache.clear();
+  inFlightRequests.clear();
 };
 
 export const getActiveTenantUserId = () => activeTenantUserId;
@@ -182,28 +204,64 @@ class ApiClient {
     return res.blob();
   }
 
-  async get<T>(path: string, params?: Record<string, any>): Promise<T> {
-    return this.request<T>(path, { method: "GET" }, params);
+  clearCache() {
+    getCache.clear();
+    inFlightRequests.clear();
+  }
+
+  async get<T>(path: string, params?: Record<string, any>, bypassCache = false): Promise<T> {
+    const url = this.buildUrl(path, params);
+    const cacheKey = `${url}#tenant:${activeTenantUserId || "self"}`;
+
+    if (!bypassCache) {
+      const cached = getCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data as T;
+      }
+      const inFlight = inFlightRequests.get(cacheKey);
+      if (inFlight) {
+        return inFlight as Promise<T>;
+      }
+    }
+
+    const reqPromise = (async () => {
+      try {
+        const data = await this.request<T>(path, { method: "GET" }, params);
+        getCache.set(cacheKey, { data, timestamp: Date.now() });
+        return data;
+      } finally {
+        inFlightRequests.delete(cacheKey);
+      }
+    })();
+
+    inFlightRequests.set(cacheKey, reqPromise);
+    return reqPromise;
   }
 
   async post<T>(path: string, body?: any): Promise<T> {
-    return this.request<T>(path, {
+    const res = await this.request<T>(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
     });
+    this.clearCache();
+    return res;
   }
 
   async put<T>(path: string, body?: any): Promise<T> {
-    return this.request<T>(path, {
+    const res = await this.request<T>(path, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
     });
+    this.clearCache();
+    return res;
   }
 
   async delete<T>(path: string): Promise<T> {
-    return this.request<T>(path, { method: "DELETE" });
+    const res = await this.request<T>(path, { method: "DELETE" });
+    this.clearCache();
+    return res;
   }
 
   async postFormData<T>(path: string, formData: FormData): Promise<T> {
@@ -211,6 +269,9 @@ class ApiClient {
     const headers: Record<string, string> = {};
     if (inMemoryAccessToken) {
       headers["Authorization"] = `Bearer ${inMemoryAccessToken}`;
+    }
+    if (activeTenantUserId) {
+      headers["X-Active-User-Id"] = String(activeTenantUserId);
     }
 
     const res = await fetch(url, {
@@ -225,6 +286,7 @@ class ApiClient {
       throw new Error(err.detail || `Request failed with status ${res.status}`);
     }
 
+    this.clearCache();
     return res.json();
   }
 

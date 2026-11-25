@@ -5,7 +5,8 @@ import { UpiQrCode } from "../../../components/common/UpiQrCode";
 
 interface BillSummaryProps {
   subtotal: number;
-  discount: number;
+  extraDiscount: number;
+  onExtraDiscountChange: (val: number) => void;
   total: number;
   paidAmount: number;
   onPaidAmountChange: (amount: number) => void;
@@ -19,7 +20,8 @@ interface BillSummaryProps {
 
 export const BillSummary: React.FC<BillSummaryProps> = ({
   subtotal,
-  discount,
+  extraDiscount,
+  onExtraDiscountChange,
   total,
   paidAmount,
   onPaidAmountChange,
@@ -41,17 +43,34 @@ export const BillSummary: React.FC<BillSummaryProps> = ({
   return (
     <div className="flex flex-col gap-3">
       {/* Calculation rows (Clean Wholesale - NO GST) */}
-      <div className="bg-surface-container-low/80 p-3 rounded-lg border border-slate-200/60 flex flex-col gap-1.5 font-mono text-xs">
-        <div className="flex justify-between text-slate-600">
-          <span>Gross Subtotal:</span>
-          <span>{formatCurrency(subtotal)}</span>
+      <div className="bg-surface-container-low/80 p-3 rounded-lg border border-slate-200/60 flex flex-col gap-2 font-mono text-xs">
+        <div className="flex justify-between text-slate-700 font-medium">
+          <span>Subtotal:</span>
+          <span className="font-semibold text-slate-900">{formatCurrency(subtotal)}</span>
         </div>
-        {discount > 0 && (
-          <div className="flex justify-between text-emerald-700 font-semibold">
-            <span>Special Discount:</span>
-            <span>- {formatCurrency(discount)}</span>
+
+        {/* Extra Discount (Manual Entry) */}
+        <div className="flex justify-between items-center text-emerald-700">
+          <span className="font-semibold flex items-center gap-1">
+            <span>Extra Discount:</span>
+          </span>
+          <div className="flex items-center gap-1">
+            <span className="text-slate-400 font-normal">- ₹</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={extraDiscount === 0 ? "" : extraDiscount}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                onExtraDiscountChange(isNaN(val) || val < 0 ? 0 : val);
+              }}
+              placeholder="0.00"
+              className="w-20 text-right font-mono font-semibold bg-white border border-emerald-300 rounded px-1.5 py-0.5 text-xs text-emerald-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
           </div>
-        )}
+        </div>
+
         {paymentMode === "SPLIT" && (
           <div className="pt-1.5 border-t border-slate-200 flex justify-between items-center text-slate-900 font-semibold">
             <span>Amount Paid Now:</span>

@@ -8,6 +8,7 @@ class InvoiceItemCreate(BaseModel):
     unit_rate: float # Wholesale selling rate
     discount_percent: float = 0.0
     tax_rate: float = 0.0
+    mrp: Optional[float] = 0.0
 
 class InvoiceItemResponse(BaseModel):
     id: int
@@ -35,6 +36,8 @@ class InvoiceCreate(BaseModel):
     payment_mode: str = "CASH" # CASH, UPI, UDHAR_CREDIT, SPLIT
     paid_amount: Optional[float] = None
     notes: Optional[str] = None
+    extra_discount: Optional[float] = 0.0
+    discount_amount: Optional[float] = 0.0
     items: List[InvoiceItemCreate]
     idempotency_key: Optional[str] = None
 
@@ -45,6 +48,8 @@ class InvoiceUpdate(BaseModel):
     payment_mode: Optional[str] = None
     paid_amount: Optional[float] = None
     notes: Optional[str] = None
+    extra_discount: Optional[float] = None
+    discount_amount: Optional[float] = None
     items: Optional[List[InvoiceItemCreate]] = None
 
 class InvoiceResponse(BaseModel):

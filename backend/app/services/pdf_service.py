@@ -1,4 +1,5 @@
 import io
+import re
 from urllib.parse import quote
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -10,6 +11,22 @@ from backend.app.models.invoice import Invoice
 from backend.app.models.settings import SystemSettings
 
 PT_PER_MM = 72.0 / 25.4 # ~2.83465 points per mm
+
+def _parse_pack_pieces(pack_size: str) -> int:
+    if not pack_size:
+        return 1
+    m = re.search(r'(\d+)\s*(?:pcs|pc|units?|case|box|pack|pk)', pack_size, re.IGNORECASE)
+    if not m:
+        m = re.search(r'(?:case|box|pack)\s*(?:of)?\s*(\d+)', pack_size, re.IGNORECASE)
+    if not m:
+        m = re.search(r'(\d+)', pack_size)
+    if m:
+        try:
+            val = int(m.group(1))
+            return val if val > 0 else 1
+        except ValueError:
+            return 1
+    return 1
 
 def get_upi_qr_drawing(upi_id: str, payee_name: str, amount: float, invoice_number: str, size: float = 70):
     if not upi_id:
@@ -133,15 +150,30 @@ def generate_invoice_pdf(invoice: Invoice, settings: SystemSettings, format_name
         story.append(meta_p)
         story.append(Spacer(1, 4))
 
-        # Compact items table: Item (w=68) | Qty (w=26) | Total (w=36)
-        t_data = [[Paragraph("<b>Item</b>", cell_bold), Paragraph("<b>Qty</b>", cell_bold), Paragraph("<b>Amt</b>", cell_bold)]]
+        # Compact items table: Description, MRP, Disc %, Amount
+        t_data = [
+            [
+                Paragraph("<b>Item</b>", cell_bold),
+                Paragraph("<b>MRP</b>", cell_bold),
+                Paragraph("<b>Disc</b>", cell_bold),
+                Paragraph("<b>Amt</b>", cell_bold),
+            ]
+        ]
         for it in invoice.items:
+            item_mrp = getattr(it, "mrp", None) or (it.product.mrp if hasattr(it, "product") and it.product and it.product.mrp else it.unit_rate) or it.unit_rate
+            if item_mrp <= 0:
+                item_mrp = it.unit_rate
+            disc_pct = getattr(it, "discount_percent", None)
+            if disc_pct is None or disc_pct == 0:
+                disc_pct = round(((item_mrp - it.unit_rate) / item_mrp) * 100, 1) if item_mrp > it.unit_rate and item_mrp > 0 else 0.0
+
             t_data.append([
-                Paragraph(f"{it.product_name[:18]}", cell_regular),
-                Paragraph(f"{it.quantity:g}", cell_regular),
-                Paragraph(f"{it.total_amount:.1f}", cell_bold)
+                Paragraph(f"<b>{it.product_name[:14]}</b><br/><font size='5' color='#64748b'>{it.quantity:g}x</font>", cell_regular),
+                Paragraph(f"{item_mrp:.0f}", cell_regular),
+                Paragraph(f"{disc_pct:.0f}%", cell_regular),
+                Paragraph(f"{it.total_amount:.1f}", cell_bold),
             ])
-        it_table = Table(t_data, colWidths=[66, 26, 38])
+        it_table = Table(t_data, colWidths=[52, 24, 22, 32])
         it_table.setStyle(TableStyle([
             ('GRID', (0,0), (-1,-1), 0.5, border_color),
             ('TOPPADDING', (0,0), (-1,-1), 2),
@@ -212,23 +244,30 @@ def generate_invoice_pdf(invoice: Invoice, settings: SystemSettings, format_name
         story.append(Paragraph(meta_text, cell_regular))
         story.append(Spacer(1, 6))
 
-        # Items Table: Item & SKU (w=96) | Qty (w=30) | Rate (w=38) | Total (w=42)
+        # Items Table: Description (w=80) | MRP (w=40) | Disc % (w=36) | Amount (w=50)
         t_data = [
             [
-                Paragraph("<b>Item Description</b>", cell_bold),
-                Paragraph("<b>Qty</b>", cell_bold),
-                Paragraph("<b>Rate</b>", cell_bold),
-                Paragraph("<b>Total</b>", cell_bold)
+                Paragraph("<b>Description</b>", cell_bold),
+                Paragraph("<b>MRP</b>", cell_bold),
+                Paragraph("<b>Disc%</b>", cell_bold),
+                Paragraph("<b>Amount</b>", cell_bold)
             ]
         ]
         for it in invoice.items:
+            item_mrp = getattr(it, "mrp", None) or (it.product.mrp if hasattr(it, "product") and it.product and it.product.mrp else it.unit_rate) or it.unit_rate
+            if item_mrp <= 0:
+                item_mrp = it.unit_rate
+            disc_pct = getattr(it, "discount_percent", None)
+            if disc_pct is None or disc_pct == 0:
+                disc_pct = round(((item_mrp - it.unit_rate) / item_mrp) * 100, 1) if item_mrp > it.unit_rate and item_mrp > 0 else 0.0
+
             t_data.append([
-                Paragraph(f"<b>{it.product_name}</b><br/><font size='6' color='#565e74'>{it.sku}</font>", cell_regular),
-                Paragraph(f"{it.quantity:g} {it.unit}", cell_regular),
-                Paragraph(f"{it.unit_rate:.2f}", cell_regular),
-                Paragraph(f"{it.total_amount:.2f}", cell_bold)
+                Paragraph(f"<b>{it.product_name}</b><br/><font size='6' color='#565e74'>{it.quantity:g} {it.unit} • {it.sku}</font>", cell_regular),
+                Paragraph(f"{item_mrp:,.2f}", cell_regular),
+                Paragraph(f"{disc_pct:g}%", cell_regular),
+                Paragraph(f"{it.total_amount:,.2f}", cell_bold)
             ])
-        it_table = Table(t_data, colWidths=[96, 32, 36, 42])
+        it_table = Table(t_data, colWidths=[80, 40, 36, 50])
         it_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), light_bg),
             ('GRID', (0,0), (-1,-1), 0.5, border_color),
@@ -333,42 +372,50 @@ def generate_invoice_pdf(invoice: Invoice, settings: SystemSettings, format_name
         story.append(cust_table)
         story.append(Spacer(1, 14))
 
-        # Line Items Table (NO GST COLUMNS - purely selling price & discount)
-        # Columns: # (25) | Item Description & SKU (228) | Pack (65) | Qty (55) | Selling Rate (75) | Discount (75)
+        # Line Items Table (Clean Wholesale A4 Format)
+        # Columns: Sr., Description, Total Qty, MRP (₹), Disc %, Rate (₹), Amount (₹)
         table_data = [
             [
                 Paragraph("<b>#</b>", cell_bold),
                 Paragraph("<b>Item Description & SKU</b>", cell_bold),
-                Paragraph("<b>Pack Size</b>", cell_bold),
-                Paragraph("<b>Quantity</b>", cell_bold),
+                Paragraph("<b>Total Qty</b>", cell_bold),
+                Paragraph("<b>MRP (₹)</b>", cell_bold),
+                Paragraph("<b>Disc %</b>", cell_bold),
                 Paragraph("<b>Rate (₹)</b>", cell_bold),
-                Paragraph("<b>Disc (₹)</b>", cell_bold),
-                Paragraph("<b>Total (₹)</b>", cell_bold),
+                Paragraph("<b>Amount (₹)</b>", cell_bold),
             ]
         ]
 
         for idx, item in enumerate(invoice.items, start=1):
-            item_title = f"<b>{item.product_name}</b><br/><font color='#565e74' size='7'>{item.sku}</font>"
-            item_disc = getattr(item, "discount_amount", 0.0) or 0.0
+            item_mrp = getattr(item, "mrp", None) or (item.product.mrp if hasattr(item, "product") and item.product and item.product.mrp else item.unit_rate) or item.unit_rate
+            if item_mrp <= 0:
+                item_mrp = item.unit_rate
+            disc_pct = getattr(item, "discount_percent", None)
+            if disc_pct is None or disc_pct == 0:
+                disc_pct = round(((item_mrp - item.unit_rate) / item_mrp) * 100, 1) if item_mrp > item.unit_rate and item_mrp > 0 else 0.0
+
+            item_title = f"<b>{item.product_name}</b><br/><font color='#565e74' size='7'>{item.sku} • {item.pack_size or '1 unit'}</font>"
+
             table_data.append([
                 Paragraph(str(idx), cell_regular),
                 Paragraph(item_title, cell_regular),
-                Paragraph(item.pack_size or "1 unit", cell_regular),
-                Paragraph(f"{item.quantity:.1f} {item.unit}", cell_regular),
-                Paragraph(f"{item.unit_rate:.2f}", cell_regular),
-                Paragraph(f"{item_disc:.2f}", cell_regular),
-                Paragraph(f"{item.total_amount:.2f}", cell_bold),
+                Paragraph(f"<b>{item.quantity:g}</b> {item.unit or 'PCS'}", cell_regular),
+                Paragraph(f"{item_mrp:,.2f}", cell_regular),
+                Paragraph(f"{disc_pct:g}%", cell_regular),
+                Paragraph(f"{item.unit_rate:,.2f}", cell_regular),
+                Paragraph(f"{item.total_amount:,.2f}", cell_bold),
             ])
 
-        items_table = Table(table_data, colWidths=[25, 203, 65, 55, 60, 55, 60])
+        items_table = Table(table_data, colWidths=[25, 218, 60, 55, 50, 55, 60])
         items_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), light_bg),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (2, -1), 'CENTER'),
             ('ALIGN', (3, 0), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('GRID', (0, 0), (-1, -1), 0.5, border_color),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ]))
         story.append(items_table)
         story.append(Spacer(1, 14))
@@ -378,7 +425,7 @@ def generate_invoice_pdf(invoice: Invoice, settings: SystemSettings, format_name
             [Paragraph("<b>Subtotal:</b>", cell_regular), Paragraph(f"₹ {invoice.subtotal:,.2f}", cell_bold)],
         ]
         if invoice.discount_amount > 0:
-            totals_data.append([Paragraph("<b>Discount:</b>", cell_regular), Paragraph(f"- ₹ {invoice.discount_amount:,.2f}", cell_regular)])
+            totals_data.append([Paragraph("<b>Extra Discount:</b>", cell_regular), Paragraph(f"- ₹ {invoice.discount_amount:,.2f}", cell_regular)])
         totals_data.extend([
             [Paragraph("<b>Grand Total:</b>", cell_bold), Paragraph(f"<b><font size='11' color='#4338ca'>₹ {invoice.total_amount:,.2f}</font></b>", cell_bold)],
             [Paragraph("<b>Amount Paid:</b>", cell_regular), Paragraph(f"₹ {invoice.paid_amount:,.2f}", cell_regular)],

@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 import re
+import secrets
+import requests
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from backend.app.core.database import get_db
 from backend.app.core.config import settings
@@ -10,6 +13,7 @@ from backend.app.core.security import (
     create_access_token,
     create_refresh_token_string,
     hash_token,
+    decode_access_token,
 )
 from backend.app.models.user import User
 from backend.app.models.session import UserSession
@@ -289,3 +293,171 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse.model_validate(current_user)
+
+
+class SupabaseTokenPayload(BaseModel):
+    access_token: str
+
+
+class SupabaseResetPasswordPayload(BaseModel):
+    access_token: str
+    new_password: str
+
+
+def _verify_supabase_token(access_token: str) -> dict:
+    """Verify Supabase access token via local JWT secret or Supabase GoTrue /user endpoint."""
+    decoded = decode_access_token(access_token)
+    if decoded and decoded.get("supabase") and decoded.get("email"):
+        return {
+            "id": decoded.get("sub"),
+            "email": decoded.get("email"),
+            "user_metadata": {},
+        }
+
+    if settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
+        try:
+            resp = requests.get(
+                f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
+                headers={
+                    "apikey": settings.SUPABASE_ANON_KEY,
+                    "Authorization": f"Bearer {access_token}",
+                },
+                timeout=8,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("email"):
+                    return data
+        except Exception:
+            pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Supabase token is invalid or expired.",
+    )
+
+
+@router.get("/supabase-config")
+def get_supabase_public_config():
+    """Return non-secret Supabase public URL and anon key for client Auth flows."""
+    return {
+        "url": settings.SUPABASE_URL,
+        "anon_key": settings.SUPABASE_ANON_KEY,
+    }
+
+
+@router.post("/supabase-login", response_model=TokenResponse)
+def supabase_login(
+    payload: SupabaseTokenPayload,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Exchange verified Supabase OAuth/Auth token for a MyBilling session (auto-provisions new Google signups)."""
+    sup_user = _verify_supabase_token(payload.access_token)
+    sup_uid = str(sup_user.get("id") or "")
+    email_clean = str(sup_user.get("email") or "").strip().lower()
+    meta = sup_user.get("user_metadata") or {}
+    full_name = (meta.get("full_name") or meta.get("name") or email_clean.split("@")[0]).strip()
+
+    user = db.query(User).filter(
+        (User.supabase_uid == sup_uid) | (User.email == email_clean)
+    ).first()
+
+    if not user:
+        user = User(
+            email=email_clean,
+            password_hash=get_password_hash(secrets.token_urlsafe(32)),
+            full_name=full_name,
+            business_name=f"{full_name}'s Business",
+            role="user",
+            is_active=True,
+            supabase_uid=sup_uid or None,
+        )
+        db.add(user)
+        db.flush()
+
+        db.add(
+            SystemSettings(
+                user_id=user.id,
+                store_name=user.business_name,
+                email=user.email,
+                tagline="Precision Billing & Invoicing",
+                currency_symbol="₹",
+            )
+        )
+    else:
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account has been disabled. Please contact support.",
+            )
+        if sup_uid and not user.supabase_uid:
+            user.supabase_uid = sup_uid
+
+    access_token = create_access_token(subject=user.id, role=user.role, email=user.email)
+    raw_refresh_token = create_refresh_token_string()
+    now = datetime.utcnow()
+
+    db.add(
+        UserSession(
+            user_id=user.id,
+            refresh_token_hash=hash_token(raw_refresh_token),
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent", "")[:250],
+            expires_at=now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+            created_at=now,
+            last_used_at=now,
+            is_revoked=False,
+        )
+    )
+    db.commit()
+    db.refresh(user)
+
+    set_auth_cookies(response, access_token, raw_refresh_token)
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
+    )
+
+
+@router.post("/supabase-reset-password")
+def supabase_reset_password(
+    payload: SupabaseResetPasswordPayload,
+    db: Session = Depends(get_db),
+):
+    """Complete Supabase password recovery and sync new password hash so normal login works."""
+    validate_password_strength(payload.new_password)
+    sup_user = _verify_supabase_token(payload.access_token)
+    email_clean = str(sup_user.get("email") or "").strip().lower()
+    sup_uid = str(sup_user.get("id") or "")
+
+    # Update password inside Supabase Auth
+    if settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
+        resp = requests.put(
+            f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
+            headers={
+                "apikey": settings.SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {payload.access_token}",
+                "Content-Type": "application/json",
+            },
+            json={"password": payload.new_password},
+            timeout=8,
+        )
+        if resp.status_code not in (200, 204):
+            err_msg = resp.json().get("msg") or resp.json().get("message") or "Failed to update password in Supabase."
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    # Sync local password hash so standard email/password login works immediately
+    user = db.query(User).filter(
+        (User.supabase_uid == sup_uid) | (User.email == email_clean)
+    ).first()
+    if user:
+        user.password_hash = get_password_hash(payload.new_password)
+        if sup_uid and not user.supabase_uid:
+            user.supabase_uid = sup_uid
+        db.commit()
+
+    return {"message": "Password updated successfully. You can now sign in."}
+

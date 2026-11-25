@@ -37,20 +37,16 @@ def create_sale_invoice(db: Session, invoice_in: InvoiceCreate, user_id: int = 1
         if not product:
             raise HTTPException(status_code=404, detail=f"Product with id {item_in.product_id} not found.")
 
-        # Selling price determines total; MRP is informational
+        # Selling price determines total (already discounted from MRP)
         selling_rate = item_in.unit_rate
         item_qty = item_in.quantity
 
         # Decrement stock
         product.stock_qty -= item_qty
 
-        # Calculation without GST
-        item_subtotal = selling_rate * item_qty
-        item_disc = (item_subtotal * (item_in.discount_percent / 100.0))
-        item_total = item_subtotal - item_disc
-
-        subtotal += item_subtotal
-        total_discount += item_disc
+        # Calculation without GST: line total = discounted selling rate * quantity
+        item_total = round(selling_rate * item_qty, 2)
+        subtotal += item_total
 
         line_items_data.append({
             "product_id": product.id,
@@ -62,10 +58,12 @@ def create_sale_invoice(db: Session, invoice_in: InvoiceCreate, user_id: int = 1
             "unit_rate": selling_rate,
             "landed_cost": product.landed_cost, # Historical cost snapshot for profitability reporting
             "tax_rate": 0.0,
-            "total_amount": round(item_total, 2),
+            "total_amount": item_total,
         })
 
-    grand_total = round(subtotal - total_discount, 2)
+    # Manual Extra Discount on subtotal (defaults to 0.0)
+    extra_discount = max(0.0, getattr(invoice_in, "extra_discount", 0.0) or getattr(invoice_in, "discount_amount", 0.0) or 0.0)
+    grand_total = max(0.0, round(subtotal - extra_discount, 2))
     
     # Determine paid vs balance
     if invoice_in.payment_mode in ["CASH", "UPI"]:
@@ -92,7 +90,7 @@ def create_sale_invoice(db: Session, invoice_in: InvoiceCreate, user_id: int = 1
         customer_name=invoice_in.customer_name,
         customer_phone=invoice_in.customer_phone,
         subtotal=round(subtotal, 2),
-        discount_amount=round(total_discount, 2),
+        discount_amount=round(extra_discount, 2),
         tax_amount=0.0,
         total_amount=grand_total,
         paid_amount=paid_amount,
@@ -229,12 +227,9 @@ def update_sale_invoice(db: Session, invoice_id: int, invoice_update: InvoiceUpd
 
         product.stock_qty -= item_qty
 
-        item_subtotal = selling_rate * item_qty
-        item_disc = item_subtotal * (item_in.discount_percent / 100.0)
-        item_total = item_subtotal - item_disc
-
-        subtotal += item_subtotal
-        total_discount += item_disc
+        # Selling price is already discounted
+        item_total = round(selling_rate * item_qty, 2)
+        subtotal += item_total
 
         processed_new_items.append({
             "product_id": product.id,
@@ -246,10 +241,12 @@ def update_sale_invoice(db: Session, invoice_id: int, invoice_update: InvoiceUpd
             "unit_rate": selling_rate,
             "landed_cost": product.landed_cost,
             "tax_rate": 0.0,
-            "total_amount": round(item_total, 2),
+            "total_amount": item_total,
         })
 
-    grand_total = round(subtotal - total_discount, 2)
+    extra_discount = invoice_update.extra_discount if invoice_update.extra_discount is not None else (invoice_update.discount_amount if invoice_update.discount_amount is not None else invoice.discount_amount)
+    extra_discount = max(0.0, extra_discount or 0.0)
+    grand_total = max(0.0, round(subtotal - extra_discount, 2))
 
     new_payment_mode = invoice_update.payment_mode or invoice.payment_mode
     if invoice_update.paid_amount is not None:
@@ -279,7 +276,7 @@ def update_sale_invoice(db: Session, invoice_id: int, invoice_update: InvoiceUpd
     invoice.payment_status = payment_status
     invoice.notes = invoice_update.notes if invoice_update.notes is not None else invoice.notes
     invoice.subtotal = round(subtotal, 2)
-    invoice.discount_amount = round(total_discount, 2)
+    invoice.discount_amount = round(extra_discount, 2)
     invoice.tax_amount = 0.0
     invoice.total_amount = grand_total
     invoice.paid_amount = paid_amount

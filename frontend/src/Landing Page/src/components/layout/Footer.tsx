@@ -34,7 +34,7 @@ export function Footer() {
                 <a href="#app-preview">Interactive Preview</a>
               </li>
               <li className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors">
-                <Link to="/pricing" target="_blank" rel="noopener noreferrer">Pricing</Link>
+                <Link to="/pricing">Pricing</Link>
               </li>
               <li className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors">
                 <a href="#">Integrations</a>

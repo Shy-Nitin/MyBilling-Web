@@ -30,6 +30,9 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
   const [landedCost, setLandedCost] = useState(0);
   const [wholesaleRate, setWholesaleRate] = useState(0);
   const [mrp, setMrp] = useState(0);
+  const [isPercentPricing, setIsPercentPricing] = useState(false);
+  const [purchaseDiscPercent, setPurchaseDiscPercent] = useState<number>(0);
+  const [wholesaleDiscPercent, setWholesaleDiscPercent] = useState<number>(0);
   const [stockQty, setStockQty] = useState(0);
   const [minThreshold, setMinThreshold] = useState(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,6 +59,12 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
       setLandedCost(editProduct.landed_cost);
       setWholesaleRate(editProduct.wholesale_rate);
       setMrp(editProduct.mrp);
+      if (editProduct.mrp > 0) {
+        const pDisc = Math.max(0, Math.round(((editProduct.mrp - editProduct.landed_cost) / editProduct.mrp) * 100 * 100) / 100);
+        const wDisc = Math.max(0, Math.round(((editProduct.mrp - editProduct.wholesale_rate) / editProduct.mrp) * 100 * 100) / 100);
+        setPurchaseDiscPercent(pDisc);
+        setWholesaleDiscPercent(wDisc);
+      }
       setStockQty(editProduct.stock_qty);
       setMinThreshold(editProduct.min_stock_threshold);
     } else {
@@ -237,55 +246,167 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
           </div>
         </div>
 
-        {/* Row 5: Pricing (Cost vs Wholesale vs MRP) */}
+        {/* Row 5: Pricing (Cost vs Wholesale vs MRP + Optional Percentage-Based Pricing) */}
         <div className="p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 flex flex-col gap-2">
-          <span className="font-mono text-[11px] text-indigo-900 font-semibold uppercase tracking-wider">
-            Pricing Architecture
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="font-mono text-[10px] text-slate-600 uppercase block mb-1">
-                Landed Cost (₹)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={landedCost}
-                onChange={(e) => setLandedCost(parseFloat(e.target.value) || 0)}
-                className="w-full font-mono text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
-              />
-              <span className="text-[9px] text-slate-400">Internal only</span>
-            </div>
-
-            <div>
-              <label className="font-mono text-[10px] text-slate-600 uppercase block mb-1">
-                Wholesale Rate (₹) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={wholesaleRate}
-                onChange={(e) => setWholesaleRate(parseFloat(e.target.value) || 0)}
-                className="w-full font-mono text-xs bg-white border border-indigo-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-bold text-primary"
-              />
-              <span className="text-[9px] text-slate-500">Billing price</span>
-            </div>
-
-            <div>
-              <label className="font-mono text-[10px] text-slate-600 uppercase block mb-1">
-                MRP (Informational)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={mrp}
-                onChange={(e) => setMrp(parseFloat(e.target.value) || 0)}
-                className="w-full font-mono text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <span className="text-[9px] text-slate-400">Printed on pack</span>
-            </div>
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[11px] text-indigo-900 font-semibold uppercase tracking-wider">
+              Pricing Architecture
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsPercentPricing(!isPercentPricing)}
+              className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-colors flex items-center gap-1 ${
+                isPercentPricing
+                  ? "bg-indigo-600 text-white border-indigo-600 font-semibold"
+                  : "bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+              }`}
+            >
+              <span>% Based Pricing</span>
+              <span className="text-[10px]">{isPercentPricing ? "ON" : "OFF"}</span>
+            </button>
           </div>
+
+          {isPercentPricing ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-mono text-[10px] text-slate-700 uppercase block mb-1 font-semibold">
+                    MRP (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={mrp}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setMrp(val);
+                      if (val > 0) {
+                        setLandedCost(Math.round(val * (1 - purchaseDiscPercent / 100) * 100) / 100);
+                        setWholesaleRate(Math.round(val * (1 - wholesaleDiscPercent / 100) * 100) / 100);
+                      }
+                    }}
+                    placeholder="e.g. 55"
+                    className="w-full font-mono text-xs bg-white border border-indigo-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-bold text-slate-900"
+                  />
+                  <span className="text-[9px] text-slate-500">Base pack MRP</span>
+                </div>
+
+                <div>
+                  <label className="font-mono text-[10px] text-slate-700 uppercase block mb-1 font-semibold">
+                    Purchase Disc %
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={purchaseDiscPercent}
+                    onChange={(e) => {
+                      const disc = parseFloat(e.target.value) || 0;
+                      setPurchaseDiscPercent(disc);
+                      if (mrp > 0) {
+                        setLandedCost(Math.round(mrp * (1 - disc / 100) * 100) / 100);
+                      }
+                    }}
+                    placeholder="e.g. 18%"
+                    className="w-full font-mono text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
+                  />
+                  <span className="text-[9px] text-slate-500">
+                    Landed: ₹{landedCost.toFixed(2)}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="font-mono text-[10px] text-slate-700 uppercase block mb-1 font-semibold">
+                    Wholesale Disc %
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={wholesaleDiscPercent}
+                    onChange={(e) => {
+                      const disc = parseFloat(e.target.value) || 0;
+                      setWholesaleDiscPercent(disc);
+                      if (mrp > 0) {
+                        setWholesaleRate(Math.round(mrp * (1 - disc / 100) * 100) / 100);
+                      }
+                    }}
+                    placeholder="e.g. 11%"
+                    className="w-full font-mono text-xs bg-white border border-indigo-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-bold text-primary"
+                  />
+                  <span className="text-[9px] text-slate-500">
+                    Wholesale: ₹{wholesaleRate.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[10px] text-indigo-700 italic">
+                Auto-calculated: Landed Cost ₹{landedCost.toFixed(2)} ({purchaseDiscPercent}% off MRP), Wholesale Rate ₹{wholesaleRate.toFixed(2)} ({wholesaleDiscPercent}% off MRP).
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="font-mono text-[10px] text-slate-600 uppercase block mb-1">
+                  Landed Cost (₹)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={landedCost}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setLandedCost(val);
+                    if (mrp > 0) setPurchaseDiscPercent(Math.max(0, Math.round(((mrp - val) / mrp) * 100 * 100) / 100));
+                  }}
+                  className="w-full font-mono text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
+                />
+                <span className="text-[9px] text-slate-400">Internal only</span>
+              </div>
+
+              <div>
+                <label className="font-mono text-[10px] text-slate-600 uppercase block mb-1">
+                  Wholesale Rate (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={wholesaleRate}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setWholesaleRate(val);
+                    if (mrp > 0) setWholesaleDiscPercent(Math.max(0, Math.round(((mrp - val) / mrp) * 100 * 100) / 100));
+                  }}
+                  className="w-full font-mono text-xs bg-white border border-indigo-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary font-bold text-primary"
+                />
+                <span className="text-[9px] text-slate-500">Billing price</span>
+              </div>
+
+              <div>
+                <label className="font-mono text-[10px] text-slate-600 uppercase block mb-1">
+                  MRP (Informational)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={mrp}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setMrp(val);
+                    if (val > 0) {
+                      setPurchaseDiscPercent(Math.max(0, Math.round(((val - landedCost) / val) * 100 * 100) / 100));
+                      setWholesaleDiscPercent(Math.max(0, Math.round(((val - wholesaleRate) / val) * 100 * 100) / 100));
+                    }
+                  }}
+                  className="w-full font-mono text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <span className="text-[9px] text-slate-400">Printed on pack</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Row 6: Stock & Threshold */}

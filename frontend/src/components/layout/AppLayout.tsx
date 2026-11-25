@@ -3,6 +3,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { HotkeyDock } from "./HotkeyDock";
 import { useAuth } from "@/context/AuthContext";
+import { apiClient } from "@/services/api/apiClient";
 import { ArrowLeft, UserCircle2 } from "lucide-react";
 
 interface AppLayoutProps {
@@ -18,22 +19,23 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onQuickAction,
   children,
 }) => {
-  const { isSwitchedWorkspace, activeWorkspace, switchWorkspace } = useAuth();
+  const { user, isSwitchedWorkspace, activeWorkspace, switchWorkspace } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [playfulMode, setPlayfulMode] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    apiClient.clearCache();
+    setRefreshTick((t) => t + 1);
     setTimeout(() => {
       setIsRefreshing(false);
-      window.location.reload();
-    }, 400);
+    }, 350);
   };
 
   const handleExitWorkspace = () => {
     switchWorkspace(null);
-    window.location.reload();
   };
 
   return (
@@ -89,7 +91,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             </div>
           )}
 
-          {children}
+          <div key={`${activeWorkspace?.id ?? user?.id ?? "self"}-${refreshTick}`}>
+            {children}
+          </div>
         </main>
       </div>
 

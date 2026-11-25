@@ -14,7 +14,9 @@ import { PricingPage } from "../Landing Page/src/pages/PricingPage";
 import { LoginPage } from "../Landing Page/src/pages/LoginPage";
 import { SignupPage } from "../Landing Page/src/pages/SignupPage";
 import { useAuth } from "../context/AuthContext";
-import { Logo } from "../components/common/Logo";
+import { MyBillingLoader } from "../components/common/MyBillingLoader";
+import { NotFoundPage } from "../components/common/NotFoundPage";
+import { AuthCallbackPage } from "../Landing Page/src/pages/AuthCallbackPage";
 
 interface ProtectedRouteProps {
   children: (navigate: (path: string) => void) => React.ReactNode;
@@ -38,15 +40,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }, [navigate]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-4">
-        <Logo className="w-16 h-16 animate-pulse" />
-        <div className="flex items-center gap-2 text-primary font-medium text-sm">
-          <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span>Restoring secure session...</span>
-        </div>
-      </div>
-    );
+    return <MyBillingLoader fullScreen message="Restoring secure session..." />;
   }
 
   if (!isAuthenticated) {
@@ -72,6 +66,8 @@ export const AppRouter: React.FC = () => {
       {/* Public Pages */}
       <Route path="/" element={<HomePage />} />
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/reset-password" element={<AuthCallbackPage />} />
       <Route
         path="/login"
         element={
@@ -167,17 +163,8 @@ export const AppRouter: React.FC = () => {
         }
       />
 
-      {/* Catch-all Fallback */}
-      <Route
-        path="*"
-        element={
-          !isLoading && isAuthenticated ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
+      {/* Custom Interactive 404 Page */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

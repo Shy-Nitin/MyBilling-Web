@@ -5,6 +5,7 @@ import { RecentInvoicesTable } from "../components/RecentInvoicesTable";
 import { QuickActionsBento } from "../components/QuickActionsBento";
 import { dashboardService } from "../services/dashboardService";
 import { DashboardMetrics } from "../../../types";
+import { MyBillingLoader } from "../../../components/common/MyBillingLoader";
 
 interface DashboardPageProps {
   onNavigate: (path: string) => void;
@@ -36,14 +37,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   };
 
   if (loading && !metrics) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-primary-container border-t-transparent rounded-full animate-spin" />
-          <span className="font-mono text-xs text-secondary">Loading register metrics...</span>
-        </div>
-      </div>
-    );
+    return <MyBillingLoader message="Loading register metrics..." />;
   }
 
   if (error && !metrics) {

@@ -38,13 +38,11 @@ export const MerchantAccountsModal: React.FC<MerchantAccountsModalProps> = ({ is
   const handleSelectWorkspace = (targetUser: User) => {
     switchWorkspace(targetUser);
     onClose();
-    window.location.reload();
   };
 
   const handleExitToSelf = () => {
     switchWorkspace(null);
     onClose();
-    window.location.reload();
   };
 
   return (

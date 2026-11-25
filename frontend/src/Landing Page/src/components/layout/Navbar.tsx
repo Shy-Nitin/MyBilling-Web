@@ -45,11 +45,11 @@ export function Navbar() {
           </Link>
           <nav className="hidden lg:flex items-center gap-space-lg">
             {navLinks.map((link) => {
-              const isActive = activeSection === link.id;
+              const isActive = activeSection === link.id && location.pathname === "/";
               return (
                 <a
                   key={link.id}
-                  href={link.href.startsWith("/#") ? link.href.substring(1) : link.href}
+                  href={location.pathname === "/" && link.href.startsWith("/#") ? link.href.substring(1) : link.href}
                   className={`font-body-md transition-colors ${
                     isActive
                       ? "text-primary font-semibold"
@@ -62,8 +62,6 @@ export function Navbar() {
             })}
             <Link
               to="/pricing"
-              target="_blank"
-              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-primary via-secondary to-accent-violet-light border border-white/20 hover:shadow-lg hover:shadow-primary/40 transition-all shadow-md group hover:scale-105 active:scale-95"
             >
               <svg className="w-3.5 h-3.5 text-white group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 20 20">
@@ -117,10 +115,10 @@ export function Navbar() {
             {navLinks.map((link) => (
               <a
                 key={link.id}
-                href={link.href.startsWith("/#") ? link.href.substring(1) : link.href}
+                href={location.pathname === "/" && link.href.startsWith("/#") ? link.href.substring(1) : link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`font-body-md text-body-md transition-colors ${
-                  activeSection === link.id
+                  activeSection === link.id && location.pathname === "/"
                     ? "text-primary font-semibold"
                     : "text-on-surface-variant hover:text-on-surface"
                 }`}
@@ -130,8 +128,6 @@ export function Navbar() {
             ))}
             <Link
               to="/pricing"
-              target="_blank"
-              rel="noopener noreferrer"
               onClick={() => setMobileMenuOpen(false)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all shadow-sm group hover:scale-105 active:scale-95"
             >
