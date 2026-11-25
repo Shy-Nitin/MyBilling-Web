@@ -8,8 +8,8 @@ interface SupabasePublicConfig {
 let cachedConfig: SupabasePublicConfig | null = null;
 
 export async function getSupabaseConfig(): Promise<SupabasePublicConfig> {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL;
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const envUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
   if (envUrl && envKey) {
     return { url: envUrl.replace(/\/$/, ""), anon_key: envKey };
   }
@@ -20,7 +20,7 @@ export async function getSupabaseConfig(): Promise<SupabasePublicConfig> {
   if (!res.url || !res.anon_key) {
     throw new Error("Supabase URL or Anon Key is not configured.");
   }
-  cachedConfig = { url: res.url.replace(/\/$/, ""), anon_key: res.anon_key };
+  cachedConfig = { url: res.url.trim().replace(/\/$/, ""), anon_key: res.anon_key.trim() };
   return cachedConfig;
 }
 

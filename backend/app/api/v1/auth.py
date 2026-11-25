@@ -306,7 +306,15 @@ class SupabaseResetPasswordPayload(BaseModel):
 
 def _verify_supabase_token(access_token: str) -> dict:
     """Verify Supabase access token via local JWT secret or Supabase GoTrue /user endpoint."""
-    decoded = decode_access_token(access_token)
+    token_clean = access_token.strip()
+    if not token_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Supabase access token is missing or empty.",
+        )
+
+    # 1. Try local Supabase JWT verification if secret is provided
+    decoded = decode_access_token(token_clean)
     if decoded and decoded.get("supabase") and decoded.get("email"):
         return {
             "id": decoded.get("sub"),
@@ -314,27 +322,52 @@ def _verify_supabase_token(access_token: str) -> dict:
             "user_metadata": {},
         }
 
-    if settings.SUPABASE_URL and settings.SUPABASE_ANON_KEY:
-        try:
-            resp = requests.get(
-                f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
-                headers={
-                    "apikey": settings.SUPABASE_ANON_KEY,
-                    "Authorization": f"Bearer {access_token}",
-                },
-                timeout=8,
+    # 2. Verify with Supabase GoTrue Auth service
+    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Supabase is not configured on the backend server (missing SUPABASE_URL or SUPABASE_ANON_KEY in environment).",
+        )
+
+    try:
+        resp = requests.get(
+            f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
+            headers={
+                "apikey": settings.SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {token_clean}",
+            },
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            user_email = data.get("email") or (data.get("user_metadata") or {}).get("email")
+            if user_email:
+                data["email"] = user_email
+                return data
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Supabase user profile did not include an email address.",
             )
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("email"):
-                    return data
+
+        # Handle non-200 responses from Supabase
+        err_msg = "Supabase token is invalid or expired."
+        try:
+            err_data = resp.json()
+            err_msg = err_data.get("msg") or err_data.get("error_description") or err_data.get("message") or err_msg
         except Exception:
             pass
 
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Supabase token is invalid or expired.",
-    )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Supabase token validation failed: {err_msg}",
+        )
+    except HTTPException:
+        raise
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Unable to connect to Supabase Auth service: {str(e)}",
+        )
 
 
 @router.get("/supabase-config")

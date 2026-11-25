@@ -1,6 +1,15 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+# Automatically load environment variables from root or backend .env
+_current_file = Path(__file__).resolve()
+_root_dir = _current_file.parent.parent.parent.parent
+load_dotenv(_root_dir / ".env")
+load_dotenv(_current_file.parent.parent.parent / ".env")
+load_dotenv()
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "MyBilling ERP"
@@ -14,10 +23,10 @@ class Settings(BaseSettings):
     )
     
     # Supabase configuration (optional / production)
-    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL", None)
-    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY", None)
-    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY", None)
-    SUPABASE_JWT_SECRET: Optional[str] = os.getenv("SUPABASE_JWT_SECRET", None)
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL", "").strip() or None
+    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY", "").strip() or None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip() or None
+    SUPABASE_JWT_SECRET: Optional[str] = os.getenv("SUPABASE_JWT_SECRET", "").strip() or None
     
     # Server configs
     BACKEND_CORS_ORIGINS: list[str] = [

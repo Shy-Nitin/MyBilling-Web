@@ -13,11 +13,13 @@ function parseHashParams(hash: string): URLSearchParams {
 export function AuthCallbackPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { setSession } = useAuth();
+  const { setSession, isAuthenticated } = useAuth();
 
   const isResetRoute = location.pathname === "/reset-password";
-  const hashParams = parseHashParams(location.hash);
-  const queryParams = new URLSearchParams(location.search);
+  const rawHash = location.hash || (typeof window !== "undefined" ? window.location.hash : "");
+  const rawSearch = location.search || (typeof window !== "undefined" ? window.location.search : "");
+  const hashParams = parseHashParams(rawHash);
+  const queryParams = new URLSearchParams(rawSearch);
 
   const accessToken = hashParams.get("access_token") || queryParams.get("access_token");
   const authType = hashParams.get("type") || queryParams.get("type");
@@ -40,6 +42,10 @@ export function AuthCallbackPage() {
   useEffect(() => {
     if (isRecovery || urlError) return;
     if (!accessToken) {
+      if (isAuthenticated) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
       setStatusError("Invalid or incomplete sign-in callback. Please try signing in again.");
       return;
     }
@@ -65,7 +71,7 @@ export function AuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, isRecovery, urlError, navigate, setSession]);
+  }, [accessToken, isRecovery, urlError, isAuthenticated, navigate, setSession]);
 
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
