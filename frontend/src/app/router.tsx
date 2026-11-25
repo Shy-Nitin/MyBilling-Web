@@ -17,6 +17,8 @@ import { useAuth } from "../context/AuthContext";
 import { MyBillingLoader } from "../components/common/MyBillingLoader";
 import { NotFoundPage } from "../components/common/NotFoundPage";
 import { AuthCallbackPage } from "../Landing Page/src/pages/AuthCallbackPage";
+import { PrivacyPage } from "../Landing Page/src/pages/PrivacyPage";
+import { TermsPage } from "../Landing Page/src/pages/TermsPage";
 
 interface ProtectedRouteProps {
   children: (navigate: (path: string) => void) => React.ReactNode;
@@ -66,6 +68,8 @@ export const AppRouter: React.FC = () => {
       {/* Public Pages */}
       <Route path="/" element={<HomePage />} />
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/reset-password" element={<AuthCallbackPage />} />
       <Route

@@ -88,17 +88,17 @@ export function Footer() {
                 <a href="#">Careers</a>
               </li>
               <li className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors">
-                <a href="#">Privacy Policy</a>
+                <Link to="/privacy">Privacy Policy</Link>
               </li>
               <li className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors">
-                <a href="#">Terms</a>
+                <Link to="/terms">Terms of Service</Link>
               </li>
             </ul>
           </div>
         </div>
 
         <div className="pt-space-lg border-t border-border-subtle flex flex-col sm:flex-row items-center justify-between gap-space-sm">
-          <span className="font-body-sm text-body-sm text-text-muted">© 2025 MyBilling Inc. All rights reserved.</span>
+          <span className="font-body-sm text-body-sm text-text-muted">© 2026 MyBilling. Free educational demonstration project.</span>
           <div className="flex items-center gap-space-md">
             <span className="font-label-mono-sm text-label-mono-sm text-text-muted">v2.4.0-prod</span>
           </div>
